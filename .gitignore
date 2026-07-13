@@ -1,9 +1,21 @@
 # Dependencies
 node_modules/
+.pnp
+.pnp.*
 
 # Next.js
 .next/
 out/
+next-env.d.ts
+
+# Testing
+coverage/
+
+# Vercel
+.vercel
+
+# Certs
+*.pem
 
 # Environment variables (never commit real secrets)
 .env
