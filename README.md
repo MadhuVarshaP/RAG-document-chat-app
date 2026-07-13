@@ -96,3 +96,11 @@ npm run dev
 - Budget a context window by hand: system prompt + retrieved chunks + question + room for the answer
 - Stream LLM tokens end-to-end: provider SSE → route handler → `ReadableStream` → React
 - Measure retrieval quality (Recall@k, MRR) instead of guessing
+
+## Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md) for setup and guidelines.
+
+## License
+
+MIT © 2026 Madhu Varsha P — see [LICENSE](./LICENSE) for details.
