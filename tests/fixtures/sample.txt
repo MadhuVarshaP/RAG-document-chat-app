@@ -1,0 +1,19 @@
+Nimbus Notes Product Overview
+
+Nimbus Notes is a note-taking application built for small teams. It syncs across devices in real time and stores every note as encrypted plain text.
+
+Pricing
+
+Nimbus Notes offers three plans. The Free plan supports up to 100 notes and one device. The Pro plan costs 8 dollars per month per user and supports unlimited notes and up to five devices. The Team plan costs 15 dollars per month per user and adds shared workspaces and admin controls.
+
+Refund Policy
+
+Customers can request a full refund within 14 days of purchase, no questions asked. Refunds are processed within 5 to 7 business days and are returned to the original payment method. Refunds are not available for the Free plan since it has no charge.
+
+Data Export
+
+Users on any plan can export all of their notes at any time in Markdown or PDF format. Exports are generated on demand and emailed as a download link that expires after 24 hours.
+
+Support
+
+Free plan users get community forum support only. Pro and Team plan users get email support with a target response time of one business day. Team plan users additionally get a dedicated Slack channel with the Nimbus Notes support team.
