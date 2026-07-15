@@ -13,6 +13,8 @@ coverage/
 
 # Vercel
 .vercel
+.qodo
+.claude
 
 # Certs
 *.pem
