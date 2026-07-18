@@ -61,13 +61,14 @@ flowchart TD
 │  ├─ embed.ts          # batched Gemini embeddings API calls                
 │  ├─ store.ts          # transactional insert of documents/chunks           
 │  ├─ retrieve.ts       # hand-written cosine top-k search                   
-│  └─ prompt.ts         # context budgeting + citation formatting            Phase 6
+│  └─ prompt.ts         # context budgeting + citation formatting
 ├─ scripts/             # standalone test-*.ts — exercise each lib/ layer
 │  ├─ test-parse.ts     # npm run test:parse
 │  ├─ test-chunk.ts     # npm run test:chunk
 │  ├─ test-embed.ts     # npm run test:embed (calls the real Gemini API)
 │  ├─ test-store.ts     # npm run test:store (full pipeline, real DB + API)
-│  └─ test-retrieve.ts  # npm run test:retrieve (semantic search + HNSW index check)
+│  ├─ test-retrieve.ts  # npm run test:retrieve (semantic search + HNSW index check)
+│  └─ test-prompt.ts    # npm run test:prompt (budget, citations, empty-hit fallback)
 ├─ tests/fixtures/      # real sample .txt/.md/.docx/.pdf used by the scripts above
 ├─ app/
 │  ├─ api/
@@ -115,6 +116,7 @@ npm run test:chunk    # text → token-bounded, overlapping chunks
 npm run test:embed    # chunks → real 1536-dim vectors via the Gemini API
 npm run test:store    # full pipeline: parse → chunk → embed → store → verify in Postgres → cascade delete
 npm run test:retrieve # ingests two unrelated docs, verifies semantic search discriminates between them, confirms HNSW index usability
+npm run test:prompt   # context-window budget enforcement, citation numbering, honest empty-hit fallback
 ```
 
 ## Progress
@@ -125,7 +127,7 @@ npm run test:retrieve # ingests two unrelated docs, verifies semantic search dis
 - [x] Phase 3 — Embeddings: batched Gemini API calls, verified against real vectors (`lib/embed.ts`)
 - [x] Phase 4 — Storage: insert documents + chunks in a transaction (`lib/store.ts`)
 - [x] Phase 5 — Retrieval: hand-written cosine top-k query (`lib/retrieve.ts`)
-- [ ] Phase 6 — Prompt assembly + context-window budgeting (`lib/prompt.ts`)
+- [x] Phase 6 — Prompt assembly + context-window budgeting (`lib/prompt.ts`)
 - [ ] Phase 7 — Generation: streaming LLM route (`app/api/chat`)
 - [ ] Phase 8 — Frontend: upload states, live streaming, citations UI
 - [ ] Eval harness — Recall@k / MRR to tune chunk size and top-k against real numbers
