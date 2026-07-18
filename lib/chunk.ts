@@ -3,7 +3,7 @@ import { encodingForModel } from "js-tiktoken";
 // Tokenize with the same model we embed with, so token counts here match
 // what the embeddings API actually sees.
 const enc = encodingForModel("text-embedding-3-small");
-const countTokens = (s: string) => enc.encode(s).length;
+export const countTokens = (s: string) => enc.encode(s).length;
 
 export interface Chunk {
   content: string;
