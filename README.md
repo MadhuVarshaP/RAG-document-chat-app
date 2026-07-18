@@ -59,13 +59,14 @@ flowchart TD
 │  ├─ parse.ts          # file → text (PDF/DOCX/TXT/MD)                      ✅
 │  ├─ chunk.ts          # text → token-bounded, overlapping chunks           ✅
 │  ├─ embed.ts          # batched Gemini embeddings API calls                ✅
-│  ├─ store.ts          # insert documents/chunks                           ⏳ Phase 4
+│  ├─ store.ts          # transactional insert of documents/chunks           ✅
 │  ├─ retrieve.ts       # cosine top-k search                               ⏳ Phase 5
 │  └─ prompt.ts         # context budgeting + citation formatting           ⏳ Phase 6
 ├─ scripts/             # standalone test-*.ts — exercise each lib/ layer
 │  ├─ test-parse.ts     # npm run test:parse
 │  ├─ test-chunk.ts     # npm run test:chunk
-│  └─ test-embed.ts     # npm run test:embed (calls the real Gemini API)
+│  ├─ test-embed.ts     # npm run test:embed (calls the real Gemini API)
+│  └─ test-store.ts     # npm run test:store (full pipeline, real DB + API)
 ├─ tests/fixtures/      # real sample .txt/.md/.docx/.pdf used by the scripts above
 ├─ app/
 │  ├─ api/
@@ -111,6 +112,7 @@ Every `lib/` module has a standalone script under `scripts/` that exercises it d
 npm run test:parse    # PDF/DOCX/TXT/MD → plain text
 npm run test:chunk    # text → token-bounded, overlapping chunks
 npm run test:embed    # chunks → real 1536-dim vectors via the Gemini API
+npm run test:store    # full pipeline: parse → chunk → embed → store → verify in Postgres → cascade delete
 ```
 
 ## Progress
@@ -119,7 +121,7 @@ npm run test:embed    # chunks → real 1536-dim vectors via the Gemini API
 - [x] Phase 1 — Parsing: PDF/DOCX/TXT/MD → clean text (`lib/parse.ts`)
 - [x] Phase 2 — Chunking: token-bounded, overlapping chunks (`lib/chunk.ts`)
 - [x] Phase 3 — Embeddings: batched Gemini API calls, verified against real vectors (`lib/embed.ts`)
-- [ ] Phase 4 — Storage: insert documents + chunks in a transaction (`lib/store.ts`)
+- [x] Phase 4 — Storage: insert documents + chunks in a transaction (`lib/store.ts`)
 - [ ] Phase 5 — Retrieval: hand-written cosine top-k query (`lib/retrieve.ts`)
 - [ ] Phase 6 — Prompt assembly + context-window budgeting (`lib/prompt.ts`)
 - [ ] Phase 7 — Generation: streaming LLM route (`app/api/chat`)
