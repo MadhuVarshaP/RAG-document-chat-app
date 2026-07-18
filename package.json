@@ -10,7 +10,8 @@
     "test:parse": "tsx scripts/test-parse.ts",
     "test:chunk": "tsx scripts/test-chunk.ts",
     "test:embed": "tsx scripts/test-embed.ts",
-    "test:store": "tsx scripts/test-store.ts"
+    "test:store": "tsx scripts/test-store.ts",
+    "test:retrieve": "tsx scripts/test-retrieve.ts"
   },
   "dependencies": {
     "js-tiktoken": "^1.0.21",
