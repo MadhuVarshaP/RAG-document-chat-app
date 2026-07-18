@@ -1,4 +1,4 @@
-// Manual smoke test for lib/embed.ts — calls the REAL OpenAI API (costs a fraction of a cent).
+// Manual smoke test for lib/embed.ts — calls the REAL Gemini embeddings API (free tier).
 // Run with: npx tsx scripts/test-embed.ts
 process.loadEnvFile(".env.local");
 
@@ -20,13 +20,13 @@ function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 async function main() {
-  if (!process.env.EMBEDDINGS_API_KEY || process.env.EMBEDDINGS_API_KEY.includes("your-openai-key")) {
+  if (!process.env.EMBEDDINGS_API_KEY || process.env.EMBEDDINGS_API_KEY.includes("your-gemini-key")) {
     console.log("SKIPPED — EMBEDDINGS_API_KEY not set in .env.local");
     return;
   }
 
   const inputs = ["a cat", "a dog", "a commercial airplane"];
-  console.log(`Embedding ${inputs.length} strings via the real OpenAI API...`);
+  console.log(`Embedding ${inputs.length} strings via the real Gemini API...`);
   const vectors = await embedAll(inputs);
 
   assert(vectors.length === inputs.length, "returned one embedding per input, in order");

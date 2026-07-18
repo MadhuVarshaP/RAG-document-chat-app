@@ -43,7 +43,7 @@ flowchart TD
 | UI | React + Tailwind CSS | Fast, polished frontend |
 | Database | Postgres 16 + pgvector | Real SQL, real vector indexes — no separate vector service |
 | DB access | `pg` (node-postgres), raw SQL | The cosine query is written by hand, on purpose |
-| Embeddings | OpenAI `text-embedding-3-small` (1536-dim) via `fetch` | Direct HTTP calls — no SDK abstraction |
+| Embeddings | Google `gemini-embedding-001` (truncated to 1536-dim) via `fetch` | Direct HTTP calls, no SDK — and a genuinely free tier (no card required) |
 | LLM | Anthropic Messages API with `stream: true` | Token streaming over SSE |
 | Tokenizer | `js-tiktoken` | Accurate chunk sizing and context budgeting |
 | Parsing | `pdf-parse` (PDF), `mammoth` (DOCX) | Text extraction isn't worth reimplementing |
