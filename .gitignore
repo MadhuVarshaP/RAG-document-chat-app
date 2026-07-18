@@ -44,3 +44,6 @@ build/
 
 # TypeScript
 *.tsbuildinfo
+
+AGENTS.md
+CLAUDE.md
