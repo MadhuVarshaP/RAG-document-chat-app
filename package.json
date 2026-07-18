@@ -13,7 +13,8 @@
     "test:store": "tsx scripts/test-store.ts",
     "test:retrieve": "tsx scripts/test-retrieve.ts",
     "test:prompt": "tsx scripts/test-prompt.ts",
-    "test:integration": "tsx scripts/test-integration.ts"
+    "test:integration": "tsx scripts/test-integration.ts",
+    "test:chat-route": "tsx scripts/test-chat-route.ts"
   },
   "dependencies": {
     "js-tiktoken": "^1.0.21",
