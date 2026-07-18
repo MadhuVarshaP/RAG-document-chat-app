@@ -1,4 +1,4 @@
-# 📄 RAG Document Chat
+# RAG Document Chat
 
 Chat with your own documents. Upload a PDF, DOCX, Markdown, or text file and ask questions about it — get streaming answers with inline citations pointing to the exact source passages.
 
@@ -53,15 +53,15 @@ flowchart TD
 
 ```
 ├─ migrations/
-│  └─ 001_init.sql      # documents + chunks tables, HNSW cosine index        ✅
+│  └─ 001_init.sql      # documents + chunks tables, HNSW cosine index        
 ├─ lib/
-│  ├─ db.ts             # pg Pool                                            ✅
-│  ├─ parse.ts          # file → text (PDF/DOCX/TXT/MD)                      ✅
-│  ├─ chunk.ts          # text → token-bounded, overlapping chunks           ✅
-│  ├─ embed.ts          # batched Gemini embeddings API calls                ✅
-│  ├─ store.ts          # transactional insert of documents/chunks           ✅
-│  ├─ retrieve.ts       # hand-written cosine top-k search                   ✅
-│  └─ prompt.ts         # context budgeting + citation formatting           ⏳ Phase 6
+│  ├─ db.ts             # pg Pool                                            
+│  ├─ parse.ts          # file → text (PDF/DOCX/TXT/MD)                      
+│  ├─ chunk.ts          # text → token-bounded, overlapping chunks           
+│  ├─ embed.ts          # batched Gemini embeddings API calls                
+│  ├─ store.ts          # transactional insert of documents/chunks           
+│  ├─ retrieve.ts       # hand-written cosine top-k search                   
+│  └─ prompt.ts         # context budgeting + citation formatting            Phase 6
 ├─ scripts/             # standalone test-*.ts — exercise each lib/ layer
 │  ├─ test-parse.ts     # npm run test:parse
 │  ├─ test-chunk.ts     # npm run test:chunk
@@ -130,13 +130,6 @@ npm run test:retrieve # ingests two unrelated docs, verifies semantic search dis
 - [ ] Phase 8 — Frontend: upload states, live streaming, citations UI
 - [ ] Eval harness — Recall@k / MRR to tune chunk size and top-k against real numbers
 
-## Learning goals
-
-- Understand embeddings, vector similarity, and why chunk size is the highest-leverage tuning knob in RAG
-- Write and index a cosine-similarity query in raw SQL (pgvector `<=>` + HNSW)
-- Budget a context window by hand: system prompt + retrieved chunks + question + room for the answer
-- Stream LLM tokens end-to-end: provider SSE → route handler → `ReadableStream` → React
-- Measure retrieval quality (Recall@k, MRR) instead of guessing
 
 ## Contributing
 
