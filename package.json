@@ -12,7 +12,8 @@
     "test:embed": "tsx scripts/test-embed.ts",
     "test:store": "tsx scripts/test-store.ts",
     "test:retrieve": "tsx scripts/test-retrieve.ts",
-    "test:prompt": "tsx scripts/test-prompt.ts"
+    "test:prompt": "tsx scripts/test-prompt.ts",
+    "test:integration": "tsx scripts/test-integration.ts"
   },
   "dependencies": {
     "js-tiktoken": "^1.0.21",
