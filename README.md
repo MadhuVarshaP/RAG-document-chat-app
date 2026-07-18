@@ -52,23 +52,29 @@ flowchart TD
 ## Project structure
 
 ```
-├─ migrations/          # plain SQL schema files
+├─ migrations/
+│  └─ 001_init.sql      # documents + chunks tables, HNSW cosine index        ✅
 ├─ lib/
-│  ├─ db.ts             # pg Pool
-│  ├─ parse.ts          # file → text
-│  ├─ chunk.ts          # text → overlapping chunks
-│  ├─ embed.ts          # direct embeddings API calls
-│  ├─ store.ts          # insert documents/chunks
-│  ├─ retrieve.ts       # cosine top-k search
-│  └─ prompt.ts         # context budgeting + citation formatting
+│  ├─ db.ts             # pg Pool                                            ✅
+│  ├─ parse.ts          # file → text (PDF/DOCX/TXT/MD)                      ✅
+│  ├─ chunk.ts          # text → token-bounded, overlapping chunks           ✅
+│  ├─ embed.ts          # batched Gemini embeddings API calls                ✅
+│  ├─ store.ts          # insert documents/chunks                           ⏳ Phase 4
+│  ├─ retrieve.ts       # cosine top-k search                               ⏳ Phase 5
+│  └─ prompt.ts         # context budgeting + citation formatting           ⏳ Phase 6
+├─ scripts/             # standalone test-*.ts — exercise each lib/ layer
+│  ├─ test-parse.ts     # npm run test:parse
+│  ├─ test-chunk.ts     # npm run test:chunk
+│  └─ test-embed.ts     # npm run test:embed (calls the real Gemini API)
+├─ tests/fixtures/      # real sample .txt/.md/.docx/.pdf used by the scripts above
 ├─ app/
 │  ├─ api/
-│  │  ├─ upload/        # ingestion endpoint
-│  │  ├─ documents/     # status polling
-│  │  └─ chat/          # retrieval + streaming answer
-│  └─ page.tsx          # chat UI
-├─ eval/                # Recall@k / MRR harness for tuning retrieval
-└─ tests/
+│  │  ├─ upload/        # ingestion endpoint                                ⏳
+│  │  ├─ documents/     # status polling                                    ⏳
+│  │  └─ chat/          # retrieval + streaming answer                      ⏳
+│  └─ page.tsx          # chat UI (still the default Next.js scaffold)      ⏳
+├─ eval/                # Recall@k / MRR harness for tuning retrieval       ⏳
+└─ CONTRIBUTING.md / LICENSE / .env.example
 ```
 
 ## Getting started
@@ -77,17 +83,48 @@ flowchart TD
 # 1. Install dependencies
 npm install
 
-# 2. Start Postgres with pgvector (see docs for options)
+# 2. Postgres + pgvector, running locally
+#    (this repo was built against Homebrew Postgres 16; the pgvector Homebrew
+#    bottle only supports newer Postgres, so it was built from source against pg16 —
+#    see https://github.com/pgvector/pgvector#installation-notes if you hit the same thing)
+brew install postgresql@16 && brew services start postgresql@16
+createdb rag_app
 
 # 3. Configure environment
-cp .env.example .env.local   # add DATABASE_URL + API keys
+cp .env.example .env.local
+# fill in DATABASE_URL (postgresql://localhost:5432/rag_app),
+# EMBEDDINGS_API_KEY (free Gemini key: https://aistudio.google.com/api-keys),
+# LLM_API_KEY (Anthropic key: https://console.anthropic.com/settings/keys)
 
-# 4. Run migrations
-npm run migrate
+# 4. Run the migration
+psql rag_app -f migrations/001_init.sql
 
 # 5. Start the dev server
 npm run dev
 ```
+
+### Testing each layer independently
+
+Every `lib/` module has a standalone script under `scripts/` that exercises it directly against real fixture files (and, for embeddings, the real API) — no need to run the full app to know a layer works:
+
+```bash
+npm run test:parse    # PDF/DOCX/TXT/MD → plain text
+npm run test:chunk    # text → token-bounded, overlapping chunks
+npm run test:embed    # chunks → real 1536-dim vectors via the Gemini API
+```
+
+## Progress
+
+- [x] Phase 0 — Postgres + pgvector running, `001_init.sql` applied, Next.js scaffolded
+- [x] Phase 1 — Parsing: PDF/DOCX/TXT/MD → clean text (`lib/parse.ts`)
+- [x] Phase 2 — Chunking: token-bounded, overlapping chunks (`lib/chunk.ts`)
+- [x] Phase 3 — Embeddings: batched Gemini API calls, verified against real vectors (`lib/embed.ts`)
+- [ ] Phase 4 — Storage: insert documents + chunks in a transaction (`lib/store.ts`)
+- [ ] Phase 5 — Retrieval: hand-written cosine top-k query (`lib/retrieve.ts`)
+- [ ] Phase 6 — Prompt assembly + context-window budgeting (`lib/prompt.ts`)
+- [ ] Phase 7 — Generation: streaming LLM route (`app/api/chat`)
+- [ ] Phase 8 — Frontend: upload states, live streaming, citations UI
+- [ ] Eval harness — Recall@k / MRR to tune chunk size and top-k against real numbers
 
 ## Learning goals
 
