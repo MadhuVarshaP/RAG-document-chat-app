@@ -18,14 +18,14 @@ RAG = semantic search + prompt stuffing + generation.
 
 ```mermaid
 flowchart TD
-    subgraph Ingestion ["📥 Ingestion (write path)"]
+    subgraph Ingestion ["Ingestion (write path)"]
         U[Upload file<br/>PDF / DOCX / MD / TXT] --> P[Parse → raw text]
         P --> C[Chunk<br/>~600 tokens + overlap]
         C --> E1[Embed chunks<br/>direct API calls, batched]
         E1 --> S[(Postgres + pgvector<br/>documents / chunks)]
     end
 
-    subgraph Query ["💬 Query (read path)"]
+    subgraph Query ["Query (read path)"]
         Q[User question] --> E2[Embed question<br/>same model!]
         E2 --> VS[Cosine top-k search<br/>hand-written SQL, HNSW index]
         S --> VS
@@ -43,7 +43,7 @@ flowchart TD
 | UI | React + Tailwind CSS | Fast, polished frontend |
 | Database | Postgres 16 + pgvector | Real SQL, real vector indexes — no separate vector service |
 | DB access | `pg` (node-postgres), raw SQL | The cosine query is written by hand, on purpose |
-| Embeddings | Google `gemini-embedding-001` (truncated to 1536-dim) via `fetch` | Direct HTTP calls, no SDK — and a genuinely free tier (no card required) |
+| Embeddings | Google `gemini-embedding-001` (truncated to 1536-dim) via `fetch` | Direct HTTP calls, no SDK — and a genuinely free tier |
 | LLM | Anthropic Messages API with `stream: true` | Token streaming over SSE |
 | Tokenizer | `js-tiktoken` | Accurate chunk sizing and context budgeting |
 | Parsing | `pdf-parse` (PDF), `mammoth` (DOCX) | Text extraction isn't worth reimplementing |
@@ -72,11 +72,11 @@ flowchart TD
 ├─ tests/fixtures/      # real sample .txt/.md/.docx/.pdf used by the scripts above
 ├─ app/
 │  ├─ api/
-│  │  ├─ upload/        # ingestion endpoint                                ⏳
-│  │  ├─ documents/     # status polling                                    ⏳
-│  │  └─ chat/          # retrieval + streaming answer                      ⏳
-│  └─ page.tsx          # chat UI (still the default Next.js scaffold)      ⏳
-├─ eval/                # Recall@k / MRR harness for tuning retrieval       ⏳
+│  │  ├─ upload/        # ingestion endpoint                                
+│  │  ├─ documents/     # status polling                                    
+│  │  └─ chat/          # retrieval + streaming answer                      
+│  └─ page.tsx          # chat UI (still the default Next.js scaffold)      
+├─ eval/                # Recall@k / MRR harness for tuning retrieval       
 └─ CONTRIBUTING.md / LICENSE / .env.example
 ```
 
