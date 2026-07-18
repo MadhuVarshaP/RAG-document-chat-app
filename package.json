@@ -11,7 +11,8 @@
     "test:chunk": "tsx scripts/test-chunk.ts",
     "test:embed": "tsx scripts/test-embed.ts",
     "test:store": "tsx scripts/test-store.ts",
-    "test:retrieve": "tsx scripts/test-retrieve.ts"
+    "test:retrieve": "tsx scripts/test-retrieve.ts",
+    "test:prompt": "tsx scripts/test-prompt.ts"
   },
   "dependencies": {
     "js-tiktoken": "^1.0.21",
