@@ -14,6 +14,8 @@ Built **from scratch** as a learning project: no LangChain, no LlamaIndex, no ve
 
 RAG = semantic search + prompt stuffing + generation.
 
+**Multiple documents aren't siloed.** Retrieval searches across every chunk from every uploaded document at once — there's no per-document scoping. Ask a question that only makes sense combining two unrelated documents (e.g. "what's the pricing, and separately, where is the company based") and the top-k search naturally pulls the relevant chunks from *each* file, and the model synthesizes one answer citing both. Verified for real in `scripts/test-multi-document.ts`.
+
 ## Architecture
 
 ```mermaid
@@ -41,6 +43,9 @@ flowchart TD
 |---|---|---|
 | Framework | Next.js (App Router) + TypeScript | One repo for API routes *and* the streaming React UI |
 | UI | React + Tailwind CSS | Fast, polished frontend |
+| Theme | ChatGPT-referenced monochrome palette (see `brand.md`) | Deliberately colorless, high-contrast — content is the focus |
+| Answer rendering | `react-markdown` | Real bullet lists/paragraphs instead of raw asterisks |
+| Icons | `lucide-react` | Clean, consistent icon set |
 | Database | Postgres 16 + pgvector | Real SQL, real vector indexes — no separate vector service |
 | DB access | `pg` (node-postgres), raw SQL | The cosine query is written by hand, on purpose |
 | Embeddings | Google `gemini-embedding-001` (truncated to 1536-dim) via `fetch` | Direct HTTP calls, no SDK — and a genuinely free tier |
@@ -124,6 +129,7 @@ npm run test:retrieve # ingests two unrelated docs, verifies semantic search dis
 npm run test:prompt   # context-window budget enforcement, citation numbering, honest empty-hit fallback
 npm run test:integration  # real retrieve->assemble wiring, transaction ROLLBACK, markDocumentFailed
 npm run test:chat-route   # real end-to-end: spins up next dev, ingests a doc, streams a real Gemini answer over the real route
+npm run test:multi-document # ingests two distinct docs, confirms one question can retrieve + synthesize across both
 ```
 
 The frontend (`app/page.tsx`, `components/`) was verified with a real headless-browser test (Playwright): upload a file → status flips to ready with a chunk count → chat input enables → ask a question → "Searching…" → streamed answer with real inline `[n]` citations → clicking a citation scrolls to and highlights its source card → removing the document clears the list and disables chat again. Zero console errors.
