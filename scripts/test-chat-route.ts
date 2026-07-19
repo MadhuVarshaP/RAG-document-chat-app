@@ -1,6 +1,6 @@
 // End-to-end test of the actual HTTP route: spins up `next dev`, ingests a real document,
 // POSTs a real question to /api/chat, and parses the real SSE stream from the real
-// Anthropic API. This is the first test that exercises the app as a real user's browser would.
+// Gemini API. This is the first test that exercises the app as a real user's browser would.
 // Run with: npx tsx scripts/test-chat-route.ts
 process.loadEnvFile(".env.local");
 
@@ -21,15 +21,21 @@ function assert(condition: boolean, message: string) {
 function waitForServerReady(proc: ChildProcess, timeoutMs = 30000): Promise<void> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error("Timed out waiting for dev server to start")), timeoutMs);
-    const onData = (data: Buffer) => {
+    let resolved = false;
+    // IMPORTANT: keep draining stdout/stderr for the child's entire lifetime.
+    // Next.js logs every request to stdout — if nobody reads that pipe after
+    // the ready-check, the OS pipe buffer fills up and the child process can
+    // block on its own stdout.write(), silently stalling request handling.
+    // (This caused a real hang here: curl against the same server worked
+    // fine, but this script's server appeared to freeze on the first request.)
+    proc.stdout?.on("data", (data: Buffer) => {
       const text = data.toString();
-      if (text.includes("Ready in")) {
+      if (!resolved && text.includes("Ready in")) {
+        resolved = true;
         clearTimeout(timer);
-        proc.stdout?.off("data", onData);
         resolve();
       }
-    };
-    proc.stdout?.on("data", onData);
+    });
     proc.stderr?.on("data", (d) => process.stderr.write(d));
   });
 }
