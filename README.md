@@ -72,12 +72,15 @@ flowchart TD
 │  ├─ test-integration.ts  # npm run test:integration (rollback, markDocumentFailed, real retrieve->assemble)
 │  └─ test-chat-route.ts   # npm run test:chat-route (real end-to-end HTTP + streaming)
 ├─ tests/fixtures/      # real sample .txt/.md/.docx/.pdf used by the scripts above
+├─ components/
+│  ├─ UploadPanel.tsx   # drag/drop upload, document list, status badges, delete
+│  └─ ChatPanel.tsx     # streaming answer, clickable [n] citations, empty-state
 ├─ app/
 │  ├─ api/
-│  │  ├─ upload/        # ingestion endpoint                                ⏳
-│  │  ├─ documents/     # status polling                                    ⏳
-│  │  └─ chat/          # retrieval + streaming answer (Gemini)             ✅
-│  └─ page.tsx          # chat UI (still the default Next.js scaffold)      ⏳
+│  │  ├─ upload/        # POST — parse -> chunk -> embed -> store, synchronous
+│  │  ├─ documents/     # GET (list) / DELETE (cascade-deletes chunks)
+│  │  └─ chat/          # retrieval + streaming answer (Gemini)
+│  └─ page.tsx          # the real chat UI
 ├─ eval/                # Recall@k / MRR harness for tuning retrieval       ⏳
 └─ CONTRIBUTING.md / LICENSE / .env.example
 ```
@@ -104,7 +107,7 @@ cp .env.example .env.local
 # 4. Run the migration
 psql rag_app -f migrations/001_init.sql
 
-# 5. Start the dev server
+# 5. Start the dev server, then open http://localhost:3000
 npm run dev
 ```
 
@@ -123,6 +126,8 @@ npm run test:integration  # real retrieve->assemble wiring, transaction ROLLBACK
 npm run test:chat-route   # real end-to-end: spins up next dev, ingests a doc, streams a real Gemini answer over the real route
 ```
 
+The frontend (`app/page.tsx`, `components/`) was verified with a real headless-browser test (Playwright): upload a file → status flips to ready with a chunk count → chat input enables → ask a question → "Searching…" → streamed answer with real inline `[n]` citations → clicking a citation scrolls to and highlights its source card → removing the document clears the list and disables chat again. Zero console errors.
+
 ## Progress
 
 - [x] Phase 0 — Postgres + pgvector running, `001_init.sql` applied, Next.js scaffolded
@@ -133,7 +138,7 @@ npm run test:chat-route   # real end-to-end: spins up next dev, ingests a doc, s
 - [x] Phase 5 — Retrieval: hand-written cosine top-k query (`lib/retrieve.ts`)
 - [x] Phase 6 — Prompt assembly + context-window budgeting (`lib/prompt.ts`)
 - [x] Phase 7 — Generation: streaming LLM route (`app/api/chat`), Gemini `gemini-3.5-flash`
-- [ ] Phase 8 — Frontend: upload states, live streaming, citations UI
+- [x] Phase 8 — Frontend: upload states, live streaming, citations UI (plus the upload/documents API routes it needed, built this phase too)
 - [ ] Eval harness — Recall@k / MRR to tune chunk size and top-k against real numbers
 
 
