@@ -43,7 +43,7 @@ flowchart TD
 |---|---|---|
 | Framework | Next.js (App Router) + TypeScript | One repo for API routes *and* the streaming React UI |
 | UI | React + Tailwind CSS | Fast, polished frontend |
-| Theme | ChatGPT-referenced monochrome palette (see `brand.md`) | Deliberately colorless, high-contrast — content is the focus |
+| Theme | ChatGPT-referenced light theme + one petrol accent (see `brand.md`) | Grayscale base for restraint, one accent for premium feel — light-only, no OS dark-mode switch |
 | Answer rendering | `react-markdown` | Real bullet lists/paragraphs instead of raw asterisks |
 | Icons | `lucide-react` | Clean, consistent icon set |
 | Database | Postgres 16 + pgvector | Real SQL, real vector indexes — no separate vector service |
