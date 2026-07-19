@@ -47,3 +47,7 @@ build/
 
 AGENTS.md
 CLAUDE.md
+
+# brand-design tooling artifacts (not part of the app)
+.brand-preview/
+*.css.bak
