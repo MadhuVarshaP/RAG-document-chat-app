@@ -1,7 +1,10 @@
 import { retrieve } from "@/lib/retrieve";
 import { assemble } from "@/lib/prompt";
 
-const MODEL = "claude-sonnet-5";
+// gemini-3.5-flash: current free-tier-eligible Flash model (gemini-2.5-flash
+// returns 404 "no longer available to new users" as of this writing — verified
+// empirically, not assumed from docs).
+const MODEL = "gemini-3.5-flash";
 
 export async function POST(req: Request) {
   const { question } = await req.json();
@@ -12,21 +15,20 @@ export async function POST(req: Request) {
   const hits = await retrieve(question, 6, 0.2);
   const { system, user, citations } = assemble(question, hits);
 
-  const upstream = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": process.env.LLM_API_KEY ?? "",
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 1024,
-      stream: true,
-      system,
-      messages: [{ role: "user", content: user }],
-    }),
-  });
+  const upstream = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:streamGenerateContent?alt=sse`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-goog-api-key": process.env.LLM_API_KEY ?? "",
+      },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: user }] }],
+        systemInstruction: { parts: [{ text: system }] },
+      }),
+    }
+  );
 
   if (!upstream.ok || !upstream.body) {
     const errText = await upstream.text();
@@ -48,8 +50,12 @@ export async function POST(req: Request) {
           if (done) break;
           buffer += dec.decode(value, { stream: true });
 
+          // A single "data: {...}" line's JSON can arrive split across two
+          // raw network chunks — buffering and only processing complete
+          // lines (keeping the last, possibly-partial one for next read)
+          // avoids parsing a truncated JSON payload.
           const lines = buffer.split("\n");
-          buffer = lines.pop() ?? ""; // keep the last (possibly partial) line for the next read
+          buffer = lines.pop() ?? "";
 
           for (const line of lines) {
             if (!line.startsWith("data:")) continue;
@@ -57,10 +63,12 @@ export async function POST(req: Request) {
             if (!jsonStr) continue;
 
             const evt = JSON.parse(jsonStr);
-            if (evt.type === "content_block_delta" && evt.delta?.type === "text_delta") {
-              controller.enqueue(enc.encode(`event: token\ndata: ${JSON.stringify(evt.delta.text)}\n\n`));
-            } else if (evt.type === "error") {
-              controller.enqueue(enc.encode(`event: error\ndata: ${JSON.stringify(evt.error)}\n\n`));
+            // Gemini's final chunk (finishReason: STOP) carries an empty text
+            // part alongside internal thinking metadata — only forward chunks
+            // that actually contain answer text.
+            const text = evt.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) {
+              controller.enqueue(enc.encode(`event: token\ndata: ${JSON.stringify(text)}\n\n`));
             }
           }
         }
