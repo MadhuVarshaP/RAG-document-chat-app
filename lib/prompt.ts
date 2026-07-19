@@ -37,7 +37,9 @@ export function assemble(
     "You answer strictly from the provided context. Cite sources inline as [1], [2] " +
     "matching the numbered context blocks. If the answer is not in the context, say you " +
     "cannot find it in the provided documents. Never invent facts. " +
-    "Respond in plain prose sentences — no markdown formatting, no bullet points, no asterisks.";
+    "Format the answer in markdown: use a short bullet list (\"- \" prefix) when the answer " +
+    "has multiple distinct points, or a plain paragraph when it's a single continuous point. " +
+    "Keep it concise — no headers, no nested lists, no tables.";
 
   const user = `Context:\n${context}\n\nQuestion: ${question}`;
 
