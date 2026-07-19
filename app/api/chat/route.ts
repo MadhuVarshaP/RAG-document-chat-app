@@ -1,10 +1,13 @@
 import { retrieve } from "@/lib/retrieve";
 import { assemble } from "@/lib/prompt";
 
-// gemini-3.5-flash: current free-tier-eligible Flash model (gemini-2.5-flash
-// returns 404 "no longer available to new users" as of this writing — verified
-// empirically, not assumed from docs).
-const MODEL = "gemini-3.5-flash";
+// gemini-3.1-flash-lite: free-tier daily quota is tracked separately per model
+// per project. gemini-3.5-flash's free quota is only 20 requests/DAY (hit for
+// real during this project's own testing — confirmed via the API's own error
+// message, not assumed) — flash-lite is the lighter, higher-quota sibling,
+// verified empirically to have quota available when 3.5-flash and 2.0-flash
+// were both exhausted. gemini-2.5-flash-lite is deprecated (404 for new users).
+const MODEL = "gemini-3.1-flash-lite";
 
 export async function POST(req: Request) {
   const { question } = await req.json();
