@@ -1,5 +1,7 @@
 # RAG Document Chat
 
+**Live demo:** https://rag-document-chat-application.vercel.app/ — ⚠️ upload/chat are currently non-functional in production. The app is deployed, but no hosted production database has been wired up yet (see [Deploying to production](#deploying-to-production)); the deployed `DATABASE_URL` still points at a local machine, which Vercel's servers can't reach. The homepage loads fine — API routes that touch Postgres return `500` until this is fixed.
+
 Chat with your own documents. Upload a PDF, DOCX, Markdown, or text file and ask questions about it — get streaming answers with inline citations pointing to the exact source passages.
 
 Built **from scratch** as a learning project: no LangChain, no LlamaIndex, no vector-DB SDK, no ORM hiding the interesting parts. Every layer — chunking, embedding calls, vector storage, the cosine-similarity search query, prompt assembly, and token streaming — is hand-written. The only external "intelligence" is the LLM / embeddings API itself.
@@ -106,8 +108,10 @@ createdb rag_app
 # 3. Configure environment
 cp .env.example .env.local
 # fill in DATABASE_URL (postgresql://localhost:5432/rag_app),
-# EMBEDDINGS_API_KEY and LLM_API_KEY — both free Gemini keys, same one works
-# for both: https://aistudio.google.com/api-keys
+# EMBEDDINGS_API_KEY and LLM_API_KEY — both free Gemini keys.
+# The same key works for both functionally, but two separate keys are
+# recommended even for local dev — see "One key or two?" below.
+# Get keys at https://aistudio.google.com/api-keys
 
 # 4. Run the migration
 psql rag_app -f migrations/001_init.sql
@@ -134,6 +138,33 @@ npm run test:multi-document # ingests two distinct docs, confirms one question c
 
 The frontend (`app/page.tsx`, `components/`) was verified with a real headless-browser test (Playwright): upload a file → status flips to ready with a chunk count → chat input enables → ask a question → "Searching…" → streamed answer with real inline `[n]` citations → clicking a citation scrolls to and highlights its source card → removing the document clears the list and disables chat again. Zero console errors.
 
+### One key or two? (`EMBEDDINGS_API_KEY` vs `LLM_API_KEY`)
+
+A single Gemini key works for both — the same key authenticates any Gemini endpoint under one Google project. But two things are worth knowing before deciding:
+
+- **Gemini's free-tier rate limits are tracked per *project*, not per *key*.** Two keys inside the same Google project share one quota pool — creating a second key there buys you nothing extra. Confirmed empirically during this project's own testing: `gemini-3.5-flash`'s free tier turned out to be only **20 requests per day**, and normal development testing exhausted it in one session (`GenerateRequestsPerDayPerProjectPerModel-FreeTier`, `quotaValue: 20` — from the API's own error, not a guess).
+- **The quota is also tracked per *model***, which is why switching the generation model (see below) immediately restored functionality — it's a fresh, separate bucket.
+
+**Recommendation:**
+- Minimum (cheap, no downside): use two separate keys even under one Google project — if one leaks, you revoke it without breaking the other function, and Google AI Studio's usage dashboard shows embeddings vs. generation usage separately.
+- If you expect real traffic: create a **second Google Cloud/AI Studio project** and pull `LLM_API_KEY` from it. That's the only thing that actually adds combined headroom, since quota doesn't multiply within one project.
+
+### A real quota issue hit during development
+
+`gemini-3.5-flash` (the original generation model) has a **20 requests/day** free-tier cap — confirmed by hitting it directly during testing, not assumed. Since quota is tracked per model, the fix was switching to `gemini-3.1-flash-lite`, verified to have quota available (tested three candidate models directly against the API first: `gemini-2.5-flash-lite` is deprecated for new users, `gemini-2.0-flash` was also exhausted, `gemini-3.1-flash-lite` returned `200`). If you hit `RESOURCE_EXHAUSTED` again, check https://aistudio.google.com/rate-limit for current usage, or switch `MODEL` in `app/api/chat/route.ts` to another current Flash model.
+
+## Deploying to production
+
+The app is deployed to Vercel, but **document upload and chat will not work** until a production database is wired up — `DATABASE_URL` in local dev points at `localhost:5432`, which only exists on the machine running `next dev`. Vercel's servers have no way to reach it, which is exactly why the live demo's API routes return `500`.
+
+To actually make it work:
+
+1. **Provision a hosted Postgres with pgvector.** [Neon](https://vercel.com/marketplace/neon) is the natural choice — it's Vercel's own first-party Postgres integration (Vercel Postgres *is* Neon), has a free tier that never expires, and supports the `vector` extension needed by `migrations/001_init.sql`. Supabase is a solid alternative if you'd rather have a fuller backend platform.
+2. **Run the migration against that hosted database:** `psql "<hosted-connection-string>" -f migrations/001_init.sql` (or the provider's SQL editor — just run the file's contents once).
+3. **Set environment variables in the Vercel project** (Project → Settings → Environment Variables): `DATABASE_URL` pointing at the hosted database, plus `EMBEDDINGS_API_KEY` and `LLM_API_KEY` (see "One key or two?" above).
+4. **Redeploy** (Vercel redeploys automatically on the next push once env vars are set, or trigger a manual redeploy from the dashboard).
+5. **Re-verify** — `curl https://<your-deployment>/api/documents` should return `[]` (not `500`) once the database is actually reachable.
+
 ## Progress
 
 - [x] Phase 0 — Postgres + pgvector running, `001_init.sql` applied, Next.js scaffolded
@@ -143,9 +174,10 @@ The frontend (`app/page.tsx`, `components/`) was verified with a real headless-b
 - [x] Phase 4 — Storage: insert documents + chunks in a transaction (`lib/store.ts`)
 - [x] Phase 5 — Retrieval: hand-written cosine top-k query (`lib/retrieve.ts`)
 - [x] Phase 6 — Prompt assembly + context-window budgeting (`lib/prompt.ts`)
-- [x] Phase 7 — Generation: streaming LLM route (`app/api/chat`), Gemini `gemini-3.5-flash`
+- [x] Phase 7 — Generation: streaming LLM route (`app/api/chat`), Gemini `gemini-3.1-flash-lite`
 - [x] Phase 8 — Frontend: upload states, live streaming, citations UI (plus the upload/documents API routes it needed, built this phase too)
 - [ ] Eval harness — Recall@k / MRR to tune chunk size and top-k against real numbers
+- [ ] Production database — deployed to Vercel, but needs a hosted Postgres+pgvector wired up before upload/chat work live (see [Deploying to production](#deploying-to-production))
 
 
 ## Contributing
