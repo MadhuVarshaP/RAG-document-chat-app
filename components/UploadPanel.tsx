@@ -74,8 +74,8 @@ export default function UploadPanel({ onDocumentsChanged }: { onDocumentsChanged
         }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
-        className={`flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 text-center transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 ${
-          dragging ? "border-ring bg-accent" : "border-border hover:bg-accent/50"
+        className={`flex w-full cursor-pointer flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed p-6 text-center transition-all has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 ${
+          dragging ? "border-primary bg-accent" : "border-border hover:border-primary/30 hover:bg-accent/40"
         }`}
       >
         <input
@@ -92,12 +92,14 @@ export default function UploadPanel({ onDocumentsChanged }: { onDocumentsChanged
         />
         {uploading ? (
           <>
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden="true" />
+            <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden="true" />
             <p className="text-sm text-muted-foreground">Processing document…</p>
           </>
         ) : (
           <>
-            <Upload className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+            <div className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${dragging ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground"}`}>
+              <Upload className="h-4 w-4" aria-hidden="true" />
+            </div>
             <p className="text-sm font-medium text-foreground">
               {dragging ? "Drop to upload" : "Drag a file here, or click to browse"}
             </p>
@@ -117,7 +119,7 @@ export default function UploadPanel({ onDocumentsChanged }: { onDocumentsChanged
         {documents.map((doc) => (
           <div
             key={doc.id}
-            className="group flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-accent"
+            className="group flex items-center gap-2 rounded-lg px-2 py-2 transition-colors hover:bg-accent"
           >
             <FileText className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div className="min-w-0 flex-1">
@@ -144,9 +146,9 @@ export default function UploadPanel({ onDocumentsChanged }: { onDocumentsChanged
 
 function StatusBadge({ status }: { status: DocumentRow["status"] }) {
   const styles = {
-    ready: "text-green-600 dark:text-green-500",
-    failed: "text-red-600 dark:text-red-500",
-    processing: "text-amber-600 dark:text-amber-500",
+    ready: "text-green-600",
+    failed: "text-red-600",
+    processing: "text-amber-600",
   };
   return <span className={styles[status]}>{status}</span>;
 }

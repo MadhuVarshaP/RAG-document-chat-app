@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { ArrowUp, Search } from "lucide-react";
+import { ArrowUp, Search, Sparkles, BookOpen } from "lucide-react";
 
 interface Citation {
   id: string;
@@ -97,16 +97,19 @@ export default function ChatPanel({ hasDocuments }: { hasDocuments: boolean }) {
 
   function scrollToCitation(n: number) {
     citationRefs.current[n]?.scrollIntoView({ behavior: "smooth", block: "center" });
-    citationRefs.current[n]?.classList.add("ring-2", "ring-ring");
-    setTimeout(() => citationRefs.current[n]?.classList.remove("ring-2", "ring-ring"), 1200);
+    citationRefs.current[n]?.classList.add("ring-2", "ring-primary/40", "border-primary/40");
+    setTimeout(() => citationRefs.current[n]?.classList.remove("ring-2", "ring-primary/40", "border-primary/40"), 1200);
   }
 
   return (
     <div className="flex h-full flex-col">
       <div className="flex-1 overflow-y-auto px-4 py-6">
         {!askedQuestion && (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-            <h2 className="text-2xl font-semibold text-foreground">Ask your documents</h2>
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent">
+              <Sparkles className="h-5 w-5 text-accent-foreground" aria-hidden="true" />
+            </div>
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Ask your documents</h2>
             <p className="max-w-sm text-sm text-muted-foreground">
               {hasDocuments
                 ? "Ask anything grounded in what you've uploaded — every answer cites its source."
@@ -117,7 +120,7 @@ export default function ChatPanel({ hasDocuments }: { hasDocuments: boolean }) {
 
         {askedQuestion && (
           <div className="mx-auto flex max-w-2xl flex-col gap-6">
-            <div className="flex justify-end">
+            <div className="flex justify-end animate-rise-in">
               <div className="max-w-[85%] rounded-3xl bg-muted px-4 py-2.5 text-sm text-foreground">
                 {askedQuestion}
               </div>
@@ -135,12 +138,12 @@ export default function ChatPanel({ hasDocuments }: { hasDocuments: boolean }) {
             )}
 
             {answer && (
-              <div className="max-w-none text-sm leading-relaxed text-foreground">
+              <div className="max-w-none animate-rise-in text-sm leading-relaxed text-foreground">
                 <ReactMarkdown
                   components={{
                     p: ({ children }) => <p className="my-2 first:mt-0 last:mb-0">{children}</p>,
-                    ul: ({ children }) => <ul className="my-2 list-disc space-y-1 pl-5">{children}</ul>,
-                    ol: ({ children }) => <ol className="my-2 list-decimal space-y-1 pl-5">{children}</ol>,
+                    ul: ({ children }) => <ul className="my-2 list-disc space-y-1 pl-5 marker:text-primary">{children}</ul>,
+                    ol: ({ children }) => <ol className="my-2 list-decimal space-y-1 pl-5 marker:text-primary">{children}</ol>,
                     li: ({ children }) => <li className="pl-1">{children}</li>,
                     strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
                     a: ({ href, children }) => {
@@ -151,7 +154,7 @@ export default function ChatPanel({ hasDocuments }: { hasDocuments: boolean }) {
                           <button
                             type="button"
                             onClick={() => scrollToCitation(n)}
-                            className="mx-0.5 rounded bg-accent px-1 align-baseline text-xs font-medium text-accent-foreground hover:bg-accent/80"
+                            className="mx-0.5 rounded-md bg-accent px-1 align-baseline text-xs font-medium text-accent-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
                           >
                             {children}
                           </button>
@@ -164,30 +167,33 @@ export default function ChatPanel({ hasDocuments }: { hasDocuments: boolean }) {
                   {linkifyCitations(answer)}
                 </ReactMarkdown>
                 {status === "streaming" && (
-                  <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-foreground align-text-bottom" />
+                  <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-primary align-text-bottom" />
                 )}
               </div>
             )}
 
             {status === "done" && citations.length === 0 && (
-              <p className="rounded-2xl bg-accent px-4 py-2.5 text-sm text-accent-foreground">
+              <p className="animate-rise-in rounded-2xl bg-accent px-4 py-2.5 text-sm text-accent-foreground">
                 Nothing relevant was found in your documents for this question.
               </p>
             )}
 
             {citations.length > 0 && (
-              <div className="flex flex-col gap-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Sources</p>
+              <div className="flex flex-col gap-2 animate-rise-in">
+                <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
+                  Sources
+                </p>
                 {citations.map((c, i) => (
                   <div
                     key={c.id}
                     ref={(el) => {
                       citationRefs.current[i + 1] = el;
                     }}
-                    className="rounded-xl border border-border p-3 text-xs transition-shadow"
+                    className="rounded-xl border border-border p-3 text-xs transition-all hover:border-primary/30 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.04)]"
                   >
                     <p className="mb-1 font-medium text-foreground">
-                      [{i + 1}] {c.filename} · similarity {c.similarity.toFixed(2)}
+                      <span className="text-primary">[{i + 1}]</span> {c.filename} · similarity {c.similarity.toFixed(2)}
                     </p>
                     <p className="text-muted-foreground">{c.content.slice(0, 220)}…</p>
                   </div>
@@ -199,7 +205,10 @@ export default function ChatPanel({ hasDocuments }: { hasDocuments: boolean }) {
       </div>
 
       <div className="border-t border-border bg-background px-4 py-4">
-        <form onSubmit={ask} className="mx-auto flex max-w-2xl items-center gap-2 rounded-3xl border border-border bg-card px-4 py-2 shadow-sm">
+        <form
+          onSubmit={ask}
+          className="mx-auto flex max-w-2xl items-center gap-2 rounded-full border border-border bg-card px-4 py-2 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.04)] transition-shadow focus-within:border-primary/40 focus-within:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,87,88,0.08)]"
+        >
           <input
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
@@ -212,7 +221,7 @@ export default function ChatPanel({ hasDocuments }: { hasDocuments: boolean }) {
             type="submit"
             disabled={!hasDocuments || !question.trim() || status === "searching" || status === "streaming"}
             aria-label="Send question"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-all hover:opacity-90 active:scale-95 disabled:opacity-30 disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <ArrowUp className="h-4 w-4" aria-hidden="true" />
           </button>
