@@ -1,0 +1,15 @@
+Nimbus Notes Security and Compliance
+
+Nimbus Notes encrypts every note with AES-256 both in transit and at rest. Encryption keys are rotated automatically every 90 days and are never shared across customer accounts.
+
+Certifications
+
+Nimbus Notes is SOC 2 Type II certified as of this year. An independent auditor reviews the certification annually, and the current report is available on request for Team plan customers.
+
+Data residency
+
+Customer data is stored in data centers located in the United States and the European Union. Team plan customers can choose which region their data is stored in at signup; this cannot be changed afterward without contacting support.
+
+Company
+
+Nimbus Notes is developed by a small remote team headquartered in Toronto, Canada, and has been operating since 2019.
