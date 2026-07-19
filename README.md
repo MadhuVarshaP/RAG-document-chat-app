@@ -44,7 +44,7 @@ flowchart TD
 | Database | Postgres 16 + pgvector | Real SQL, real vector indexes — no separate vector service |
 | DB access | `pg` (node-postgres), raw SQL | The cosine query is written by hand, on purpose |
 | Embeddings | Google `gemini-embedding-001` (truncated to 1536-dim) via `fetch` | Direct HTTP calls, no SDK — and a genuinely free tier |
-| LLM | Anthropic Messages API with `stream: true` | Token streaming over SSE |
+| LLM | Google `gemini-3.5-flash` via `streamGenerateContent` (SSE) | Direct HTTP calls, no SDK — free tier, same provider/account as embeddings |
 | Tokenizer | `js-tiktoken` | Accurate chunk sizing and context budgeting |
 | Parsing | `pdf-parse` (PDF), `mammoth` (DOCX) | Text extraction isn't worth reimplementing |
 | Migrations | Plain `.sql` files | Schema stays visible and owned |
@@ -68,15 +68,17 @@ flowchart TD
 │  ├─ test-embed.ts     # npm run test:embed (calls the real Gemini API)
 │  ├─ test-store.ts     # npm run test:store (full pipeline, real DB + API)
 │  ├─ test-retrieve.ts  # npm run test:retrieve (semantic search + HNSW index check)
-│  └─ test-prompt.ts    # npm run test:prompt (budget, citations, empty-hit fallback)
+│  ├─ test-prompt.ts    # npm run test:prompt (budget, citations, empty-hit fallback)
+│  ├─ test-integration.ts  # npm run test:integration (rollback, markDocumentFailed, real retrieve->assemble)
+│  └─ test-chat-route.ts   # npm run test:chat-route (real end-to-end HTTP + streaming)
 ├─ tests/fixtures/      # real sample .txt/.md/.docx/.pdf used by the scripts above
 ├─ app/
 │  ├─ api/
-│  │  ├─ upload/        # ingestion endpoint                                
-│  │  ├─ documents/     # status polling                                    
-│  │  └─ chat/          # retrieval + streaming answer                      
-│  └─ page.tsx          # chat UI (still the default Next.js scaffold)      
-├─ eval/                # Recall@k / MRR harness for tuning retrieval       
+│  │  ├─ upload/        # ingestion endpoint                                ⏳
+│  │  ├─ documents/     # status polling                                    ⏳
+│  │  └─ chat/          # retrieval + streaming answer (Gemini)             ✅
+│  └─ page.tsx          # chat UI (still the default Next.js scaffold)      ⏳
+├─ eval/                # Recall@k / MRR harness for tuning retrieval       ⏳
 └─ CONTRIBUTING.md / LICENSE / .env.example
 ```
 
@@ -96,8 +98,8 @@ createdb rag_app
 # 3. Configure environment
 cp .env.example .env.local
 # fill in DATABASE_URL (postgresql://localhost:5432/rag_app),
-# EMBEDDINGS_API_KEY (free Gemini key: https://aistudio.google.com/api-keys),
-# LLM_API_KEY (Anthropic key: https://console.anthropic.com/settings/keys)
+# EMBEDDINGS_API_KEY and LLM_API_KEY — both free Gemini keys, same one works
+# for both: https://aistudio.google.com/api-keys
 
 # 4. Run the migration
 psql rag_app -f migrations/001_init.sql
@@ -117,6 +119,8 @@ npm run test:embed    # chunks → real 1536-dim vectors via the Gemini API
 npm run test:store    # full pipeline: parse → chunk → embed → store → verify in Postgres → cascade delete
 npm run test:retrieve # ingests two unrelated docs, verifies semantic search discriminates between them, confirms HNSW index usability
 npm run test:prompt   # context-window budget enforcement, citation numbering, honest empty-hit fallback
+npm run test:integration  # real retrieve->assemble wiring, transaction ROLLBACK, markDocumentFailed
+npm run test:chat-route   # real end-to-end: spins up next dev, ingests a doc, streams a real Gemini answer over the real route
 ```
 
 ## Progress
@@ -128,7 +132,7 @@ npm run test:prompt   # context-window budget enforcement, citation numbering, h
 - [x] Phase 4 — Storage: insert documents + chunks in a transaction (`lib/store.ts`)
 - [x] Phase 5 — Retrieval: hand-written cosine top-k query (`lib/retrieve.ts`)
 - [x] Phase 6 — Prompt assembly + context-window budgeting (`lib/prompt.ts`)
-- [ ] Phase 7 — Generation: streaming LLM route (`app/api/chat`)
+- [x] Phase 7 — Generation: streaming LLM route (`app/api/chat`), Gemini `gemini-3.5-flash`
 - [ ] Phase 8 — Frontend: upload states, live streaming, citations UI
 - [ ] Eval harness — Recall@k / MRR to tune chunk size and top-k against real numbers
 
