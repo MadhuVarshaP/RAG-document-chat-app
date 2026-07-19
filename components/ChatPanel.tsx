@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import { ArrowUp, Search } from "lucide-react";
 
 interface Citation {
   id: string;
@@ -13,8 +15,16 @@ interface Citation {
 
 type Status = "idle" | "searching" | "streaming" | "done" | "error";
 
+// Turn "...refund [1]..." into a real markdown link "[\[1\]](#cite-1)" so
+// react-markdown renders it as a clickable, properly-escaped "[1]" — the
+// backslash-escaped inner brackets avoid any ambiguity with nested link syntax.
+function linkifyCitations(text: string): string {
+  return text.replace(/\[(\d+)\]/g, (_, n) => `[\\[${n}\\]](#cite-${n})`);
+}
+
 export default function ChatPanel({ hasDocuments }: { hasDocuments: boolean }) {
   const [question, setQuestion] = useState("");
+  const [askedQuestion, setAskedQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [citations, setCitations] = useState<Citation[]>([]);
   const [status, setStatus] = useState<Status>("idle");
@@ -26,6 +36,8 @@ export default function ChatPanel({ hasDocuments }: { hasDocuments: boolean }) {
     const q = question.trim();
     if (!q || status === "searching" || status === "streaming") return;
 
+    setAskedQuestion(q);
+    setQuestion("");
     setAnswer("");
     setCitations([]);
     setErrorMessage(null);
@@ -85,91 +97,127 @@ export default function ChatPanel({ hasDocuments }: { hasDocuments: boolean }) {
 
   function scrollToCitation(n: number) {
     citationRefs.current[n]?.scrollIntoView({ behavior: "smooth", block: "center" });
-    citationRefs.current[n]?.classList.add("ring-2", "ring-zinc-900", "dark:ring-zinc-100");
-    setTimeout(() => citationRefs.current[n]?.classList.remove("ring-2", "ring-zinc-900", "dark:ring-zinc-100"), 1200);
+    citationRefs.current[n]?.classList.add("ring-2", "ring-ring");
+    setTimeout(() => citationRefs.current[n]?.classList.remove("ring-2", "ring-ring"), 1200);
   }
 
-  const answerParts = answer.split(/(\[\d+\])/g);
-
   return (
-    <div className="flex flex-col gap-4">
-      <form onSubmit={ask} className="flex gap-2">
-        <input
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          disabled={!hasDocuments}
-          placeholder={hasDocuments ? "Ask a question about your documents…" : "Upload a document first"}
-          className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
-        />
-        <button
-          type="submit"
-          disabled={!hasDocuments || status === "searching" || status === "streaming"}
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900"
-        >
-          Ask
-        </button>
-      </form>
+    <div className="flex h-full flex-col">
+      <div className="flex-1 overflow-y-auto px-4 py-6">
+        {!askedQuestion && (
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+            <h2 className="text-2xl font-semibold text-foreground">Ask your documents</h2>
+            <p className="max-w-sm text-sm text-muted-foreground">
+              {hasDocuments
+                ? "Ask anything grounded in what you've uploaded — every answer cites its source."
+                : "Upload a document on the left to get started."}
+            </p>
+          </div>
+        )}
 
-      {status === "searching" && (
-        <p className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-500">
-          <span className="h-3 w-3 animate-pulse rounded-full bg-zinc-400" />
-          Searching your documents…
-        </p>
-      )}
-
-      {errorMessage && (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-400">
-          {errorMessage}
-        </p>
-      )}
-
-      {answer && (
-        <div className="rounded-lg border border-zinc-200 bg-white p-4 text-sm leading-relaxed text-zinc-900 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100">
-          {answerParts.map((part, i) => {
-            const match = part.match(/^\[(\d+)\]$/);
-            if (match) {
-              const n = Number(match[1]);
-              return (
-                <button
-                  key={i}
-                  onClick={() => scrollToCitation(n)}
-                  className="mx-0.5 rounded bg-zinc-100 px-1 font-medium text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-                >
-                  {part}
-                </button>
-              );
-            }
-            return <span key={i}>{part}</span>;
-          })}
-          {status === "streaming" && <span className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-zinc-400" />}
-        </div>
-      )}
-
-      {status === "done" && citations.length === 0 && (
-        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-          Nothing relevant was found in your documents for this question.
-        </p>
-      )}
-
-      {citations.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-500">Sources</p>
-          {citations.map((c, i) => (
-            <div
-              key={c.id}
-              ref={(el) => {
-                citationRefs.current[i + 1] = el;
-              }}
-              className="rounded-lg border border-zinc-200 p-3 text-xs transition-shadow dark:border-zinc-800"
-            >
-              <p className="mb-1 font-medium text-zinc-700 dark:text-zinc-300">
-                [{i + 1}] {c.filename} · similarity {c.similarity.toFixed(2)}
-              </p>
-              <p className="text-zinc-500 dark:text-zinc-500">{c.content.slice(0, 220)}…</p>
+        {askedQuestion && (
+          <div className="mx-auto flex max-w-2xl flex-col gap-6">
+            <div className="flex justify-end">
+              <div className="max-w-[85%] rounded-3xl bg-muted px-4 py-2.5 text-sm text-foreground">
+                {askedQuestion}
+              </div>
             </div>
-          ))}
-        </div>
-      )}
+
+            {status === "searching" && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Search className="h-4 w-4 animate-pulse" aria-hidden="true" />
+                Searching your documents…
+              </div>
+            )}
+
+            {errorMessage && (
+              <p className="rounded-2xl bg-destructive/10 px-4 py-2.5 text-sm text-destructive">{errorMessage}</p>
+            )}
+
+            {answer && (
+              <div className="max-w-none text-sm leading-relaxed text-foreground">
+                <ReactMarkdown
+                  components={{
+                    p: ({ children }) => <p className="my-2 first:mt-0 last:mb-0">{children}</p>,
+                    ul: ({ children }) => <ul className="my-2 list-disc space-y-1 pl-5">{children}</ul>,
+                    ol: ({ children }) => <ol className="my-2 list-decimal space-y-1 pl-5">{children}</ol>,
+                    li: ({ children }) => <li className="pl-1">{children}</li>,
+                    strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                    a: ({ href, children }) => {
+                      const match = href?.match(/^#cite-(\d+)$/);
+                      if (match) {
+                        const n = Number(match[1]);
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => scrollToCitation(n)}
+                            className="mx-0.5 rounded bg-accent px-1 align-baseline text-xs font-medium text-accent-foreground hover:bg-accent/80"
+                          >
+                            {children}
+                          </button>
+                        );
+                      }
+                      return <a href={href}>{children}</a>;
+                    },
+                  }}
+                >
+                  {linkifyCitations(answer)}
+                </ReactMarkdown>
+                {status === "streaming" && (
+                  <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-foreground align-text-bottom" />
+                )}
+              </div>
+            )}
+
+            {status === "done" && citations.length === 0 && (
+              <p className="rounded-2xl bg-accent px-4 py-2.5 text-sm text-accent-foreground">
+                Nothing relevant was found in your documents for this question.
+              </p>
+            )}
+
+            {citations.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Sources</p>
+                {citations.map((c, i) => (
+                  <div
+                    key={c.id}
+                    ref={(el) => {
+                      citationRefs.current[i + 1] = el;
+                    }}
+                    className="rounded-xl border border-border p-3 text-xs transition-shadow"
+                  >
+                    <p className="mb-1 font-medium text-foreground">
+                      [{i + 1}] {c.filename} · similarity {c.similarity.toFixed(2)}
+                    </p>
+                    <p className="text-muted-foreground">{c.content.slice(0, 220)}…</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="border-t border-border bg-background px-4 py-4">
+        <form onSubmit={ask} className="mx-auto flex max-w-2xl items-center gap-2 rounded-3xl border border-border bg-card px-4 py-2 shadow-sm">
+          <input
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            disabled={!hasDocuments}
+            aria-label="Ask a question about your documents"
+            placeholder={hasDocuments ? "Ask a question about your documents…" : "Upload a document first"}
+            className="flex-1 bg-transparent py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
+          />
+          <button
+            type="submit"
+            disabled={!hasDocuments || !question.trim() || status === "searching" || status === "streaming"}
+            aria-label="Send question"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <ArrowUp className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

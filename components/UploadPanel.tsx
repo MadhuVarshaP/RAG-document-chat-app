@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { FileText, Upload, X, Loader2 } from "lucide-react";
 
 export interface DocumentRow {
   id: string;
@@ -65,25 +66,24 @@ export default function UploadPanel({ onDocumentsChanged }: { onDocumentsChanged
 
   return (
     <div className="flex flex-col gap-4">
-      <div
+      <label
+        htmlFor="file-upload"
         onDragOver={(e) => {
           e.preventDefault();
           setDragging(true);
         }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
-        onClick={() => fileInputRef.current?.click()}
-        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
-          dragging
-            ? "border-zinc-900 bg-zinc-50 dark:border-zinc-100 dark:bg-zinc-900"
-            : "border-zinc-300 dark:border-zinc-700"
+        className={`flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 text-center transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 ${
+          dragging ? "border-ring bg-accent" : "border-border hover:bg-accent/50"
         }`}
       >
         <input
           ref={fileInputRef}
+          id="file-upload"
           type="file"
           accept=".pdf,.docx,.txt,.md"
-          className="hidden"
+          className="sr-only"
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) uploadFile(file);
@@ -92,37 +92,37 @@ export default function UploadPanel({ onDocumentsChanged }: { onDocumentsChanged
         />
         {uploading ? (
           <>
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-400 border-t-zinc-900 dark:border-t-zinc-100" />
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">Processing document…</p>
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden="true" />
+            <p className="text-sm text-muted-foreground">Processing document…</p>
           </>
         ) : (
           <>
-            <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+            <Upload className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+            <p className="text-sm font-medium text-foreground">
               {dragging ? "Drop to upload" : "Drag a file here, or click to browse"}
             </p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-500">PDF, DOCX, TXT, or MD — up to 10MB</p>
+            <p className="text-xs text-muted-foreground">PDF, DOCX, TXT, or MD — up to 10MB</p>
           </>
         )}
-      </div>
+      </label>
 
       {uploadError && (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-400">
-          {uploadError}
-        </p>
+        <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">{uploadError}</p>
       )}
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1">
         {documents.length === 0 && (
-          <p className="text-sm text-zinc-500 dark:text-zinc-500">No documents uploaded yet.</p>
+          <p className="px-1 text-sm text-muted-foreground">No documents uploaded yet.</p>
         )}
         {documents.map((doc) => (
           <div
             key={doc.id}
-            className="flex items-center justify-between gap-2 rounded-lg border border-zinc-200 px-3 py-2 dark:border-zinc-800"
+            className="group flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-accent"
           >
+            <FileText className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">{doc.filename}</p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-500">
+              <p className="truncate text-sm font-medium text-foreground">{doc.filename}</p>
+              <p className="truncate text-xs text-muted-foreground">
                 <StatusBadge status={doc.status} />
                 {doc.status === "ready" && ` · ${doc.chunkCount} chunks`}
                 {doc.status === "failed" && doc.error && ` · ${doc.error}`}
@@ -130,10 +130,10 @@ export default function UploadPanel({ onDocumentsChanged }: { onDocumentsChanged
             </div>
             <button
               onClick={() => deleteDocument(doc.id)}
-              className="shrink-0 text-xs text-zinc-400 hover:text-red-600 dark:hover:text-red-400"
-              aria-label={`Delete ${doc.filename}`}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 hover:bg-secondary hover:text-destructive focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100"
+              aria-label={`Remove ${doc.filename}`}
             >
-              Remove
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
           </div>
         ))}
@@ -144,9 +144,9 @@ export default function UploadPanel({ onDocumentsChanged }: { onDocumentsChanged
 
 function StatusBadge({ status }: { status: DocumentRow["status"] }) {
   const styles = {
-    ready: "text-green-700 dark:text-green-400",
-    failed: "text-red-700 dark:text-red-400",
-    processing: "text-amber-700 dark:text-amber-400",
+    ready: "text-green-600 dark:text-green-500",
+    failed: "text-red-600 dark:text-red-500",
+    processing: "text-amber-600 dark:text-amber-500",
   };
   return <span className={styles[status]}>{status}</span>;
 }

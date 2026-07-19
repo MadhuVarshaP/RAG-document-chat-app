@@ -14,16 +14,19 @@
     "test:retrieve": "tsx scripts/test-retrieve.ts",
     "test:prompt": "tsx scripts/test-prompt.ts",
     "test:integration": "tsx scripts/test-integration.ts",
-    "test:chat-route": "tsx scripts/test-chat-route.ts"
+    "test:chat-route": "tsx scripts/test-chat-route.ts",
+    "test:multi-document": "tsx scripts/test-multi-document.ts"
   },
   "dependencies": {
     "js-tiktoken": "^1.0.21",
+    "lucide-react": "^1.25.0",
     "mammoth": "^1.12.0",
     "next": "16.2.10",
     "pdf-parse": "^2.4.5",
     "pg": "^8.22.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "react-markdown": "^10.1.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
