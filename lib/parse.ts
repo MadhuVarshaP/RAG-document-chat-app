@@ -1,3 +1,9 @@
+// Must be imported before PDFParse — without it, pdf.js's "fake worker" setup
+// tries to dynamically import pdf.worker.mjs by a path that Next.js's bundler
+// (Turbopack) has already rewritten, and fails with a module-not-found error.
+// Only reproduces when bundled (a real Next.js route); the plain-Node test
+// script in Phase 1 never hit this because there's no bundler involved there.
+import "pdf-parse/worker";
 import { PDFParse } from "pdf-parse";
 import mammoth from "mammoth";
 
