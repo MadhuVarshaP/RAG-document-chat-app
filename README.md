@@ -1,6 +1,6 @@
 # RAG Document Chat
 
-**Live demo:** https://rag-document-chat-application.vercel.app/ — ⚠️ upload/chat are currently non-functional in production. The app is deployed, but no hosted production database has been wired up yet (see [Deploying to production](#deploying-to-production)); the deployed `DATABASE_URL` still points at a local machine, which Vercel's servers can't reach. The homepage loads fine — API routes that touch Postgres return `500` until this is fixed.
+**Live demo:** https://rag-document-chat-application.vercel.app/ — fully working: upload, retrieval, and streaming generation all verified end-to-end against the live deployment (real hosted Postgres via Neon, see [Deploying to production](#deploying-to-production)).
 
 Chat with your own documents. Upload a PDF, DOCX, Markdown, or text file and ask questions about it — get streaming answers with inline citations pointing to the exact source passages.
 
@@ -155,15 +155,19 @@ A single Gemini key works for both — the same key authenticates any Gemini end
 
 ## Deploying to production
 
-The app is deployed to Vercel, but **document upload and chat will not work** until a production database is wired up — `DATABASE_URL` in local dev points at `localhost:5432`, which only exists on the machine running `next dev`. Vercel's servers have no way to reach it, which is exactly why the live demo's API routes return `500`.
+The live demo above is deployed on Vercel with a real hosted database — here's what that took, in case you're deploying your own copy. The key thing to know going in: local dev's `DATABASE_URL` points at `localhost:5432`, which only exists on the machine running `next dev`. Vercel's servers have no way to reach it, so the very first deploy will 500 on every route that touches Postgres until you wire up a hosted database.
 
 To actually make it work:
 
-1. **Provision a hosted Postgres with pgvector.** [Neon](https://vercel.com/marketplace/neon) is the natural choice — it's Vercel's own first-party Postgres integration (Vercel Postgres *is* Neon), has a free tier that never expires, and supports the `vector` extension needed by `migrations/001_init.sql`. Supabase is a solid alternative if you'd rather have a fuller backend platform.
+1. **Provision a hosted Postgres with pgvector — recommended: [Neon](https://vercel.com/marketplace/neon).** It's Vercel's own first-party Postgres integration (Vercel Postgres *is* Neon), connects through the Vercel dashboard's Storage tab with `DATABASE_URL` wired up automatically, has a free tier that never expires, and fully supports pgvector including HNSW indexes up to 2,000 dimensions (confirmed against Neon's own docs — comfortably covers this project's 1536-dim vectors) with zero extra restrictions. This is what the live demo actually runs on.
 2. **Run the migration against that hosted database:** `psql "<hosted-connection-string>" -f migrations/001_init.sql` (or the provider's SQL editor — just run the file's contents once).
 3. **Set environment variables in the Vercel project** (Project → Settings → Environment Variables): `DATABASE_URL` pointing at the hosted database, plus `EMBEDDINGS_API_KEY` and `LLM_API_KEY` (see "One key or two?" above).
 4. **Redeploy** (Vercel redeploys automatically on the next push once env vars are set, or trigger a manual redeploy from the dashboard).
 5. **Re-verify** — `curl https://<your-deployment>/api/documents` should return `[]` (not `500`) once the database is actually reachable.
+
+### Vercel's hard file-size limit
+
+Vercel Functions enforce a **non-configurable 4.5MB request body limit on every plan** (Hobby/Pro/Enterprise) — confirmed against Vercel's own docs and reproduced directly against this project's live deployment (a 5.7MB upload returned a raw platform `413 FUNCTION_PAYLOAD_TOO_LARGE` before the app's own code ever ran). `lib/constants.ts` caps uploads at 4MB, checked both client-side (fails fast, no wasted request) and server-side (authoritative). This only matters in production — there's no such limit running `next dev` locally.
 
 ## Progress
 
@@ -177,7 +181,7 @@ To actually make it work:
 - [x] Phase 7 — Generation: streaming LLM route (`app/api/chat`), Gemini `gemini-3.1-flash-lite`
 - [x] Phase 8 — Frontend: upload states, live streaming, citations UI (plus the upload/documents API routes it needed, built this phase too)
 - [ ] Eval harness — Recall@k / MRR to tune chunk size and top-k against real numbers
-- [ ] Production database — deployed to Vercel, but needs a hosted Postgres+pgvector wired up before upload/chat work live (see [Deploying to production](#deploying-to-production))
+- [x] Production deployment — live on Vercel with a hosted Neon Postgres, verified end-to-end (see [Deploying to production](#deploying-to-production))
 
 
 ## Contributing
