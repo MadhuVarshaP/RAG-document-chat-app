@@ -47,7 +47,13 @@ build/
 
 AGENTS.md
 CLAUDE.md
+brand.md
 
 # brand-design tooling artifacts (not part of the app)
 .brand-preview/
 *.css.bak
+
+# local agent-tooling artifacts (Neon CLI setup, etc.) — not part of the app
+.neon
+.agents/
+skills-lock.json
