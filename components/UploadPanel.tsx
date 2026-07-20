@@ -49,7 +49,7 @@ export default function UploadPanel({ onDocumentsChanged }: { onDocumentsChanged
       // touches a Vercel Function's request body, so it isn't subject to the
       // platform's hard 4.5MB limit (see app/api/blob-upload/route.ts).
       const blob = await upload(file.name, file, {
-        access: "public",
+        access: "private", // matches how the connected Blob store is configured
         handleUploadUrl: "/api/blob-upload",
       });
 

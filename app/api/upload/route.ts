@@ -1,4 +1,4 @@
-import { del } from "@vercel/blob";
+import { del, get } from "@vercel/blob";
 import { extractText, normalizeText } from "@/lib/parse";
 import { chunkText } from "@/lib/chunk";
 import { embedAll } from "@/lib/embed";
@@ -27,11 +27,13 @@ export async function POST(req: Request) {
   }
 
   try {
-    const fileRes = await fetch(blobUrl);
-    if (!fileRes.ok) {
-      return Response.json({ error: `failed to fetch uploaded file (${fileRes.status})` }, { status: 502 });
+    // The store is private, so plain fetch(blobUrl) isn't authorized — get()
+    // reads it using BLOB_READ_WRITE_TOKEN automatically.
+    const result = await get(blobUrl, { access: "private" });
+    if (!result?.stream) {
+      return Response.json({ error: "failed to fetch uploaded file" }, { status: 502 });
     }
-    const buf = Buffer.from(await fileRes.arrayBuffer());
+    const buf = Buffer.from(await new Response(result.stream).arrayBuffer());
     const text = normalizeText(await extractText(buf, contentType));
     if (!text) {
       await del(blobUrl).catch(() => {});
