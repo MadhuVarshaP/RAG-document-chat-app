@@ -9,11 +9,14 @@ process.loadEnvFile(".env.local");
 import { spawn, ChildProcess } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { extractText, normalizeText } from "../lib/parse";
 import { chunkText } from "../lib/chunk";
 import { embedAll } from "../lib/embed";
 import { storeDocument } from "../lib/store";
 import { getPool } from "../lib/db";
+
+const sessionId = randomUUID();
 
 function assert(condition: boolean, message: string) {
   console.log(`${condition ? "PASS" : "FAIL"} — ${message}`);
@@ -40,7 +43,7 @@ async function ingest(filename: string): Promise<string> {
   const text = normalizeText(await extractText(buf, "text/plain"));
   const chunks = chunkText(text, { maxTokens: 150, overlapTokens: 30 });
   const embeddings = await embedAll(chunks.map((c) => c.content));
-  const id = await storeDocument(filename, "text/plain", chunks, embeddings);
+  const id = await storeDocument(filename, "text/plain", chunks, embeddings, sessionId);
   console.log(`Ingested ${filename} -> ${chunks.length} chunks`);
   return id;
 }
@@ -62,9 +65,12 @@ async function main() {
     const question = "What are the pricing plans, and separately, is the data encrypted and where is the company based?";
     console.log(`\nAsking a question that spans both documents:\n"${question}"\n`);
 
+    // Sending the same session_id as a cookie so the route resolves to the
+    // SAME session the documents above were ingested under — otherwise the
+    // route would mint a brand-new session with no visible documents.
     const res = await fetch("http://localhost:3000/api/chat", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", cookie: `session_id=${sessionId}` },
       body: JSON.stringify({ question }),
     });
 

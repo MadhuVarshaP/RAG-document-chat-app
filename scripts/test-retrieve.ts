@@ -5,12 +5,15 @@ process.loadEnvFile(".env.local");
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { extractText, normalizeText } from "../lib/parse";
 import { chunkText } from "../lib/chunk";
 import { embedAll } from "../lib/embed";
 import { storeDocument } from "../lib/store";
 import { retrieve } from "../lib/retrieve";
 import { getPool } from "../lib/db";
+
+const sessionId = randomUUID();
 
 function assert(condition: boolean, message: string) {
   console.log(`${condition ? "PASS" : "FAIL"} — ${message}`);
@@ -22,7 +25,7 @@ async function ingest(filename: string): Promise<string> {
   const text = normalizeText(await extractText(buf, "text/plain"));
   const chunks = chunkText(text, { maxTokens: 150, overlapTokens: 30 });
   const embeddings = await embedAll(chunks.map((c) => c.content));
-  const docId = await storeDocument(filename, "text/plain", chunks, embeddings);
+  const docId = await storeDocument(filename, "text/plain", chunks, embeddings, sessionId);
   console.log(`Ingested ${filename} -> ${chunks.length} chunks, document ${docId}`);
   return docId;
 }
@@ -33,22 +36,26 @@ async function main() {
 
   try {
     console.log("\n=== Query: \"How do I get a refund?\" ===");
-    const refundHits = await retrieve("How do I get a refund?", 3);
+    const refundHits = await retrieve("How do I get a refund?", sessionId, 3);
     refundHits.forEach((h) => console.log(`  [${h.similarity.toFixed(3)}] ${h.filename}: ${h.content.slice(0, 70)}...`));
     assert(refundHits.length > 0, "returns results");
     assert(refundHits[0].filename === "sample.txt", "top hit for a refund question comes from the product doc, not the hiking doc");
     assert(refundHits[0].content.toLowerCase().includes("refund"), "top hit's content actually mentions refunds");
 
     console.log("\n=== Query: \"What gear should I bring on a hike?\" ===");
-    const gearHits = await retrieve("What gear should I bring on a hike?", 3);
+    const gearHits = await retrieve("What gear should I bring on a hike?", sessionId, 3);
     gearHits.forEach((h) => console.log(`  [${h.similarity.toFixed(3)}] ${h.filename}: ${h.content.slice(0, 70)}...`));
     assert(gearHits.length > 0, "returns results");
     assert(gearHits[0].filename === "sample2.txt", "top hit for a gear question comes from the hiking doc, not the product doc");
 
     console.log("\n=== Similarity floor: unrelated query with a high minSimilarity ===");
-    const offTopic = await retrieve("How do I file my taxes in Germany?", 5, 0.5);
+    const offTopic = await retrieve("How do I file my taxes in Germany?", sessionId, 5, 0.5);
     console.log(`  -> ${offTopic.length} hits above 0.5 similarity`);
     assert(offTopic.length === 0, "an unrelated query with a similarity floor returns nothing, instead of forcing irrelevant chunks into the prompt");
+
+    console.log("\n=== Session isolation: a different session sees none of these documents ===");
+    const strangerHits = await retrieve("How do I get a refund?", randomUUID(), 5);
+    assert(strangerHits.length === 0, "a different session_id retrieves zero hits, even for a query that strongly matches another session's documents");
 
     console.log("\n=== Confirm the HNSW index is usable by the query planner ===");
     const dummyVec = "[" + new Array(1536).fill(0).join(",") + "]";

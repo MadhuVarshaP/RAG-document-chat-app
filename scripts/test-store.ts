@@ -4,11 +4,14 @@ process.loadEnvFile(".env.local");
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { extractText, normalizeText } from "../lib/parse";
 import { chunkText } from "../lib/chunk";
 import { embedAll } from "../lib/embed";
 import { storeDocument } from "../lib/store";
 import { getPool } from "../lib/db";
+
+const sessionId = randomUUID();
 
 function assert(condition: boolean, message: string) {
   console.log(`${condition ? "PASS" : "FAIL"} — ${message}`);
@@ -24,7 +27,7 @@ async function main() {
   console.log("Embedding via the real Gemini API...");
   const embeddings = await embedAll(chunks.map((c) => c.content));
 
-  const docId = await storeDocument("sample.txt", "text/plain", chunks, embeddings);
+  const docId = await storeDocument("sample.txt", "text/plain", chunks, embeddings, sessionId);
   console.log(`Stored as document ${docId}`);
 
   // --- Verify what actually landed in Postgres, not just "no exception was thrown" ---

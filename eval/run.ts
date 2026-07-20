@@ -10,12 +10,15 @@ process.loadEnvFile(".env.local");
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { extractText, normalizeText } from "../lib/parse";
 import { chunkText } from "../lib/chunk";
 import { embedAll } from "../lib/embed";
 import { storeDocument } from "../lib/store";
 import { retrieve } from "../lib/retrieve";
 import { getPool } from "../lib/db";
+
+const sessionId = randomUUID();
 
 interface EvalCase {
   question: string;
@@ -31,7 +34,7 @@ async function ingestFixture(filename: string): Promise<string> {
   const text = normalizeText(await extractText(buf, "text/plain"));
   const chunks = chunkText(text, { maxTokens: MAX_TOKENS, overlapTokens: OVERLAP_TOKENS });
   const embeddings = await embedAll(chunks.map((c) => c.content));
-  return storeDocument(filename, "text/plain", chunks, embeddings);
+  return storeDocument(filename, "text/plain", chunks, embeddings, sessionId);
 }
 
 async function main() {
@@ -49,7 +52,7 @@ async function main() {
     console.log(`\nRunning ${dataset.length} eval questions...\n`);
 
     for (const c of dataset) {
-      const results = await retrieve(c.question, TOP_K);
+      const results = await retrieve(c.question, sessionId, TOP_K);
       const rankIndex = results.findIndex((r) => r.filename === c.expectedFilename);
       const found = rankIndex !== -1;
       if (found) {

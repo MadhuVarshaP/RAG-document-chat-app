@@ -5,6 +5,7 @@ process.loadEnvFile(".env.local");
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { extractText, normalizeText } from "../lib/parse";
 import { chunkText } from "../lib/chunk";
 import { embedAll } from "../lib/embed";
@@ -12,6 +13,8 @@ import { storeDocument, markDocumentFailed } from "../lib/store";
 import { retrieve } from "../lib/retrieve";
 import { assemble } from "../lib/prompt";
 import { getPool } from "../lib/db";
+
+const sessionId = randomUUID();
 
 function assert(condition: boolean, message: string) {
   console.log(`${condition ? "PASS" : "FAIL"} — ${message}`);
@@ -27,9 +30,9 @@ async function main() {
     const text = normalizeText(await extractText(buf, "text/plain"));
     const chunks = chunkText(text, { maxTokens: 150, overlapTokens: 30 });
     const embeddings = await embedAll(chunks.map((c) => c.content));
-    docId = await storeDocument("sample.txt", "text/plain", chunks, embeddings);
+    docId = await storeDocument("sample.txt", "text/plain", chunks, embeddings, sessionId);
 
-    const hits = await retrieve("What is the refund policy?", 3);
+    const hits = await retrieve("What is the refund policy?", sessionId, 3);
     const prompt = assemble("What is the refund policy?", hits);
 
     assert(hits.length > 0, "retrieve() returns real hits from the real DB");
@@ -48,7 +51,7 @@ async function main() {
     const badEmbeddings = chunks.map(() => new Array(10).fill(0)); // wrong dimension on purpose
     let rollbackWorked = false;
     try {
-      await storeDocument("bad-doc.txt", "text/plain", chunks, badEmbeddings);
+      await storeDocument("bad-doc.txt", "text/plain", chunks, badEmbeddings, sessionId);
     } catch (err) {
       rollbackWorked = true;
       console.log(`  Got the expected DB error: ${(err as Error).message.split("\n")[0]}`);
