@@ -7,7 +7,8 @@ export async function storeDocument(
   filename: string,
   contentType: string,
   chunks: Chunk[],
-  embeddings: number[][]
+  embeddings: number[][],
+  sessionId: string
 ): Promise<string> {
   if (chunks.length !== embeddings.length) {
     throw new Error(`chunk/embedding count mismatch: ${chunks.length} chunks vs ${embeddings.length} embeddings`);
@@ -18,9 +19,9 @@ export async function storeDocument(
     await client.query("BEGIN");
 
     const { rows } = await client.query(
-      `INSERT INTO documents (filename, content_type, status, chunk_count)
-       VALUES ($1, $2, 'ready', $3) RETURNING id`,
-      [filename, contentType, chunks.length]
+      `INSERT INTO documents (filename, content_type, status, chunk_count, session_id)
+       VALUES ($1, $2, 'ready', $3, $4) RETURNING id`,
+      [filename, contentType, chunks.length, sessionId]
     );
     const docId: string = rows[0].id;
 
