@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FileText, Upload, X, Loader2 } from "lucide-react";
+import { MAX_FILE_BYTES, MAX_FILE_MB } from "@/lib/constants";
 
 export interface DocumentRow {
   id: string;
@@ -33,6 +34,15 @@ export default function UploadPanel({ onDocumentsChanged }: { onDocumentsChanged
   }, [refresh]);
 
   async function uploadFile(file: File) {
+    // Check client-side first — Vercel's platform enforces a hard 4.5MB request
+    // body limit before our route code even runs, returning a raw, unfriendly
+    // error. Catching oversized files here means we never send the request at
+    // all for anything we already know will fail.
+    if (file.size > MAX_FILE_BYTES) {
+      setUploadError(`"${file.name}" is ${(file.size / (1024 * 1024)).toFixed(1)}MB — the limit is ${MAX_FILE_MB}MB.`);
+      return;
+    }
+
     setUploading(true);
     setUploadError(null);
     try {
@@ -103,7 +113,7 @@ export default function UploadPanel({ onDocumentsChanged }: { onDocumentsChanged
             <p className="text-sm font-medium text-foreground">
               {dragging ? "Drop to upload" : "Drag a file here, or click to browse"}
             </p>
-            <p className="text-xs text-muted-foreground">PDF, DOCX, TXT, or MD — up to 10MB</p>
+            <p className="text-xs text-muted-foreground">PDF, DOCX, TXT, or MD — up to {MAX_FILE_MB}MB</p>
           </>
         )}
       </label>

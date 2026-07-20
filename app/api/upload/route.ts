@@ -2,8 +2,8 @@ import { extractText, normalizeText } from "@/lib/parse";
 import { chunkText } from "@/lib/chunk";
 import { embedAll } from "@/lib/embed";
 import { storeDocument } from "@/lib/store";
+import { MAX_FILE_BYTES, MAX_FILE_MB } from "@/lib/constants";
 
-const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = new Set([
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "file is required" }, { status: 400 });
   }
   if (file.size > MAX_FILE_BYTES) {
-    return Response.json({ error: "file exceeds the 10MB limit" }, { status: 413 });
+    return Response.json({ error: `file exceeds the ${MAX_FILE_MB}MB limit` }, { status: 413 });
   }
 
   const contentType = inferContentType(file);
