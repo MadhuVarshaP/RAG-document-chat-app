@@ -55,11 +55,14 @@ flowchart TD
 | Parsing | `pdf-parse` (PDF), `mammoth` (DOCX) | Text extraction isn't worth reimplementing |
 | Answer rendering | `react-markdown` | Real bullet lists/paragraphs, not raw markdown |
 | Migrations | Plain `.sql` files | Schema stays visible and owned |
+| Privacy | HTTP-only session cookie (`lib/session.ts`) | Each browser session only sees, queries, and can delete its own documents — no login, no cross-visitor leakage |
 
 ## Project structure
 
 ```
-├─ migrations/001_init.sql   # documents + chunks tables, HNSW cosine index
+├─ migrations/
+│  ├─ 001_init.sql      # documents + chunks tables, HNSW cosine index
+│  └─ 002_session_scope.sql # session_id on documents, for per-browser privacy
 ├─ lib/
 │  ├─ db.ts             # pg Pool
 │  ├─ parse.ts          # file → text (PDF/DOCX/TXT/MD)
@@ -68,6 +71,7 @@ flowchart TD
 │  ├─ store.ts          # transactional insert of documents/chunks
 │  ├─ retrieve.ts       # hand-written cosine top-k search
 │  ├─ prompt.ts         # context budgeting + citation formatting
+│  ├─ session.ts        # anonymous per-browser session cookie
 │  └─ constants.ts      # shared upload limits + content-type helpers
 ├─ scripts/             # standalone test-*.ts — exercise each lib/ layer directly
 ├─ eval/                # Recall@k / MRR harness (eval/run.ts, eval/dataset.json)
@@ -105,8 +109,9 @@ cp .env.example .env.local
 #   (same key works for both; two separate keys is better hygiene but doesn't add quota —
 #   Gemini's free tier is tracked per Google project, not per key)
 
-# 4. Run the migration
+# 4. Run the migrations
 psql rag_app -f migrations/001_init.sql
+psql rag_app -f migrations/002_session_scope.sql
 
 # 5. Start the dev server, then open http://localhost:3000
 npm run dev
@@ -150,7 +155,7 @@ Current fixture set scores 100% Recall@6 / MRR 1.000 — expected given how smal
 
 ## Deploying your own copy
 
-1. **Hosted Postgres with pgvector** — [Neon](https://vercel.com/marketplace/neon) (Vercel's first-party Postgres integration, connects via the Storage tab, free tier, full pgvector/HNSW support). Run `migrations/001_init.sql` against it once.
+1. **Hosted Postgres with pgvector** — [Neon](https://vercel.com/marketplace/neon) (Vercel's first-party Postgres integration, connects via the Storage tab, free tier, full pgvector/HNSW support). Run `migrations/001_init.sql` and `migrations/002_session_scope.sql` against it once, in order.
 2. **Vercel Blob storage** — Storage tab → create a Blob store → connect it to the project. This injects `BLOB_READ_WRITE_TOKEN`.
 3. **Environment variables** (Project → Settings → Environment Variables): `DATABASE_URL`, `EMBEDDINGS_API_KEY`, `LLM_API_KEY`.
 4. **Redeploy**, then verify: `curl https://<your-deployment>/api/documents` should return `[]`, not `500`.
