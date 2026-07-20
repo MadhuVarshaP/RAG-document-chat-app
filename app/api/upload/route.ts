@@ -4,6 +4,7 @@ import { chunkText } from "@/lib/chunk";
 import { embedAll } from "@/lib/embed";
 import { storeDocument } from "@/lib/store";
 import { ALLOWED_UPLOAD_TYPES, inferContentType } from "@/lib/constants";
+import { getOrCreateSessionId } from "@/lib/session";
 
 const ALLOWED_TYPES = new Set<string>(ALLOWED_UPLOAD_TYPES);
 
@@ -14,6 +15,7 @@ const ALLOWED_TYPES = new Set<string>(ALLOWED_UPLOAD_TYPES);
 // runs the ingestion pipeline, then deletes the blob — Postgres is the
 // durable store; Blob storage is just a relay for getting the bytes here.
 export async function POST(req: Request) {
+  const sessionId = await getOrCreateSessionId();
   const { blobUrl, filename, contentType: providedType } = await req.json();
 
   if (!blobUrl || typeof blobUrl !== "string" || !filename || typeof filename !== "string") {
@@ -42,7 +44,7 @@ export async function POST(req: Request) {
 
     const chunks = chunkText(text);
     const embeddings = await embedAll(chunks.map((c) => c.content));
-    const id = await storeDocument(filename, contentType, chunks, embeddings);
+    const id = await storeDocument(filename, contentType, chunks, embeddings, sessionId);
 
     await del(blobUrl).catch(() => {}); // best-effort cleanup — the extracted text is already durably in Postgres
 

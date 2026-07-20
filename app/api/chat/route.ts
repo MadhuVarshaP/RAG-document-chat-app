@@ -1,5 +1,6 @@
 import { retrieve } from "@/lib/retrieve";
 import { assemble } from "@/lib/prompt";
+import { getOrCreateSessionId } from "@/lib/session";
 
 // gemini-3.1-flash-lite: free-tier daily quota is tracked separately per model
 // per project. gemini-3.5-flash's free quota is only 20 requests/DAY (hit for
@@ -15,7 +16,8 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ error: "question is required" }), { status: 400 });
   }
 
-  const hits = await retrieve(question, 6, 0.2);
+  const sessionId = await getOrCreateSessionId();
+  const hits = await retrieve(question, sessionId, 6, 0.2);
   const { system, user, citations } = assemble(question, hits);
 
   const upstream = await fetch(
