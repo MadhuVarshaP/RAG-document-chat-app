@@ -15,7 +15,8 @@
     "test:prompt": "tsx scripts/test-prompt.ts",
     "test:integration": "tsx scripts/test-integration.ts",
     "test:chat-route": "tsx scripts/test-chat-route.ts",
-    "test:multi-document": "tsx scripts/test-multi-document.ts"
+    "test:multi-document": "tsx scripts/test-multi-document.ts",
+    "eval": "tsx eval/run.ts"
   },
   "dependencies": {
     "@vercel/blob": "^2.6.1",

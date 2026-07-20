@@ -1,0 +1,18 @@
+[
+  { "question": "What is the refund policy?", "expectedFilename": "sample.txt" },
+  { "question": "How much does the Pro plan cost per month?", "expectedFilename": "sample.txt" },
+  { "question": "What kind of support do Free plan users get?", "expectedFilename": "sample.txt" },
+  { "question": "Can I export my notes, and in what formats?", "expectedFilename": "sample.txt" },
+  { "question": "How many devices does the Team plan support?", "expectedFilename": "sample.txt" },
+  { "question": "How long does it take to process a refund?", "expectedFilename": "sample.txt" },
+  { "question": "How long is the Ridgeline Trail loop?", "expectedFilename": "sample2.txt" },
+  { "question": "What gear should I bring on a hike?", "expectedFilename": "sample2.txt" },
+  { "question": "Are there bears on the trail?", "expectedFilename": "sample2.txt" },
+  { "question": "Do I need a permit for overnight camping?", "expectedFilename": "sample2.txt" },
+  { "question": "What's the weather risk on the exposed ridge section?", "expectedFilename": "sample2.txt" },
+  { "question": "Is customer data encrypted?", "expectedFilename": "sample3.txt" },
+  { "question": "Is the product SOC 2 certified?", "expectedFilename": "sample3.txt" },
+  { "question": "Where is customer data physically stored?", "expectedFilename": "sample3.txt" },
+  { "question": "Where is the company headquartered?", "expectedFilename": "sample3.txt" },
+  { "question": "How often are encryption keys rotated?", "expectedFilename": "sample3.txt" }
+]
