@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { upload } from "@vercel/blob/client";
 import { FileText, Upload, X, Loader2 } from "lucide-react";
 import { MAX_FILE_BYTES, MAX_FILE_MB } from "@/lib/constants";
 
@@ -34,10 +35,8 @@ export default function UploadPanel({ onDocumentsChanged }: { onDocumentsChanged
   }, [refresh]);
 
   async function uploadFile(file: File) {
-    // Check client-side first — Vercel's platform enforces a hard 4.5MB request
-    // body limit before our route code even runs, returning a raw, unfriendly
-    // error. Catching oversized files here means we never send the request at
-    // all for anything we already know will fail.
+    // Client-side pre-check: fail fast for files we already know are too big,
+    // instead of starting an upload that will be rejected later.
     if (file.size > MAX_FILE_BYTES) {
       setUploadError(`"${file.name}" is ${(file.size / (1024 * 1024)).toFixed(1)}MB — the limit is ${MAX_FILE_MB}MB.`);
       return;
@@ -46,9 +45,21 @@ export default function UploadPanel({ onDocumentsChanged }: { onDocumentsChanged
     setUploading(true);
     setUploadError(null);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      // Uploads straight to Vercel Blob storage from the browser — this never
+      // touches a Vercel Function's request body, so it isn't subject to the
+      // platform's hard 4.5MB limit (see app/api/blob-upload/route.ts).
+      const blob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl: "/api/blob-upload",
+      });
+
+      // Now that the bytes are in Blob storage, ask the server to fetch and
+      // ingest them — this request body is just a small JSON pointer.
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ blobUrl: blob.url, filename: file.name, contentType: file.type }),
+      });
       const data = await res.json();
       if (!res.ok) {
         setUploadError(data.error ?? "Upload failed");

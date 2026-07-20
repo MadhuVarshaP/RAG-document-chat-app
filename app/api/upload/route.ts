@@ -1,56 +1,52 @@
+import { del } from "@vercel/blob";
 import { extractText, normalizeText } from "@/lib/parse";
 import { chunkText } from "@/lib/chunk";
 import { embedAll } from "@/lib/embed";
 import { storeDocument } from "@/lib/store";
-import { MAX_FILE_BYTES, MAX_FILE_MB } from "@/lib/constants";
+import { ALLOWED_UPLOAD_TYPES, inferContentType } from "@/lib/constants";
 
-const ALLOWED_TYPES = new Set([
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "text/plain",
-  "text/markdown",
-]);
+const ALLOWED_TYPES = new Set<string>(ALLOWED_UPLOAD_TYPES);
 
-function inferContentType(file: File): string {
-  if (file.type) return file.type;
-  // Some browsers/OSes leave `.type` empty for .md/.txt — fall back to extension.
-  const ext = file.name.split(".").pop()?.toLowerCase();
-  if (ext === "md") return "text/markdown";
-  if (ext === "txt") return "text/plain";
-  if (ext === "pdf") return "application/pdf";
-  if (ext === "docx") return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-  return "application/octet-stream";
-}
-
+// Called after the browser has already uploaded the file directly to Vercel
+// Blob (see app/api/blob-upload/route.ts) — this route only ever receives a
+// small JSON pointer, never the file bytes, so it isn't subject to Vercel's
+// 4.5MB Function body limit. It fetches the real content from Blob storage,
+// runs the ingestion pipeline, then deletes the blob — Postgres is the
+// durable store; Blob storage is just a relay for getting the bytes here.
 export async function POST(req: Request) {
-  const formData = await req.formData();
-  const file = formData.get("file");
+  const { blobUrl, filename, contentType: providedType } = await req.json();
 
-  if (!file || !(file instanceof File)) {
-    return Response.json({ error: "file is required" }, { status: 400 });
-  }
-  if (file.size > MAX_FILE_BYTES) {
-    return Response.json({ error: `file exceeds the ${MAX_FILE_MB}MB limit` }, { status: 413 });
+  if (!blobUrl || typeof blobUrl !== "string" || !filename || typeof filename !== "string") {
+    return Response.json({ error: "blobUrl and filename are required" }, { status: 400 });
   }
 
-  const contentType = inferContentType(file);
+  const contentType = inferContentType(filename, providedType);
   if (!ALLOWED_TYPES.has(contentType)) {
+    await del(blobUrl).catch(() => {});
     return Response.json({ error: `unsupported file type: ${contentType}` }, { status: 415 });
   }
 
   try {
-    const buf = Buffer.from(await file.arrayBuffer());
+    const fileRes = await fetch(blobUrl);
+    if (!fileRes.ok) {
+      return Response.json({ error: `failed to fetch uploaded file (${fileRes.status})` }, { status: 502 });
+    }
+    const buf = Buffer.from(await fileRes.arrayBuffer());
     const text = normalizeText(await extractText(buf, contentType));
     if (!text) {
+      await del(blobUrl).catch(() => {});
       return Response.json({ error: "no extractable text found in this file" }, { status: 422 });
     }
 
     const chunks = chunkText(text);
     const embeddings = await embedAll(chunks.map((c) => c.content));
-    const id = await storeDocument(file.name, contentType, chunks, embeddings);
+    const id = await storeDocument(filename, contentType, chunks, embeddings);
 
-    return Response.json({ id, filename: file.name, status: "ready", chunkCount: chunks.length });
+    await del(blobUrl).catch(() => {}); // best-effort cleanup — the extracted text is already durably in Postgres
+
+    return Response.json({ id, filename, status: "ready", chunkCount: chunks.length });
   } catch (err) {
+    await del(blobUrl).catch(() => {});
     return Response.json({ error: `ingestion failed: ${(err as Error).message}` }, { status: 500 });
   }
 }
