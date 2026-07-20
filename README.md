@@ -1,6 +1,6 @@
 # RAG Document Chat
 
-**Live demo:** https://rag-document-chat-application.vercel.app/ — fully working: upload, retrieval, and streaming generation all verified end-to-end against the live deployment (real hosted Postgres via Neon, see [Deploying to production](#deploying-to-production)).
+**Live demo:** https://rag-document-chat-application.vercel.app/
 
 Chat with your own documents. Upload a PDF, DOCX, Markdown, or text file and ask questions about it — get streaming answers with inline citations pointing to the exact source passages.
 
@@ -16,14 +16,15 @@ Built **from scratch** as a learning project: no LangChain, no LlamaIndex, no ve
 
 RAG = semantic search + prompt stuffing + generation.
 
-**Multiple documents aren't siloed.** Retrieval searches across every chunk from every uploaded document at once — there's no per-document scoping. Ask a question that only makes sense combining two unrelated documents (e.g. "what's the pricing, and separately, where is the company based") and the top-k search naturally pulls the relevant chunks from *each* file, and the model synthesizes one answer citing both. Verified for real in `scripts/test-multi-document.ts`.
+Retrieval isn't scoped per document — it searches across every chunk from every uploaded file at once, so a single question can pull relevant chunks from multiple documents and get one synthesized, cited answer (see `scripts/test-multi-document.ts`).
 
 ## Architecture
 
 ```mermaid
 flowchart TD
     subgraph Ingestion ["Ingestion (write path)"]
-        U[Upload file<br/>PDF / DOCX / MD / TXT] --> P[Parse → raw text]
+        U[Upload file<br/>PDF / DOCX / MD / TXT] --> BLOB[Direct-to-Blob upload<br/>Vercel Blob storage]
+        BLOB --> P[Parse → raw text]
         P --> C[Chunk<br/>~600 tokens + overlap]
         C --> E1[Embed chunks<br/>direct API calls, batched]
         E1 --> S[(Postgres + pgvector<br/>documents / chunks)]
@@ -43,52 +44,44 @@ flowchart TD
 
 | Concern | Choice | Why |
 |---|---|---|
-| Framework | Next.js (App Router) + TypeScript | One repo for API routes *and* the streaming React UI |
-| UI | React + Tailwind CSS | Fast, polished frontend |
-| Theme | ChatGPT-referenced light theme + one petrol accent (see `brand.md`) | Grayscale base for restraint, one accent for premium feel — light-only, no OS dark-mode switch |
-| Answer rendering | `react-markdown` | Real bullet lists/paragraphs instead of raw asterisks |
-| Icons | `lucide-react` | Clean, consistent icon set |
-| Database | Postgres 16 + pgvector | Real SQL, real vector indexes — no separate vector service |
+| Framework | Next.js (App Router) + TypeScript | One repo for API routes and the streaming React UI |
+| UI | React + Tailwind CSS | Light theme, one accent color, CSS variables in `app/globals.css` |
+| Database | Postgres + pgvector (hosted on Neon) | Real SQL, real vector indexes, no separate vector service |
 | DB access | `pg` (node-postgres), raw SQL | The cosine query is written by hand, on purpose |
-| Embeddings | Google `gemini-embedding-001` (truncated to 1536-dim) via `fetch` | Direct HTTP calls, no SDK — and a genuinely free tier |
-| LLM | Google `gemini-3.5-flash` via `streamGenerateContent` (SSE) | Direct HTTP calls, no SDK — free tier, same provider/account as embeddings |
+| File uploads | Vercel Blob (`@vercel/blob`), direct client → storage | Vercel Functions cap request bodies at 4.5MB; direct-to-Blob upload bypasses that entirely |
+| Embeddings | Google `gemini-embedding-001` (1536-dim) via `fetch` | Direct HTTP calls, no SDK — free tier |
+| LLM | Google `gemini-3.1-flash-lite` via `streamGenerateContent` (SSE) | Direct HTTP calls, no SDK — free tier |
 | Tokenizer | `js-tiktoken` | Accurate chunk sizing and context budgeting |
 | Parsing | `pdf-parse` (PDF), `mammoth` (DOCX) | Text extraction isn't worth reimplementing |
+| Answer rendering | `react-markdown` | Real bullet lists/paragraphs, not raw markdown |
 | Migrations | Plain `.sql` files | Schema stays visible and owned |
 
 ## Project structure
 
 ```
-├─ migrations/
-│  └─ 001_init.sql      # documents + chunks tables, HNSW cosine index        
+├─ migrations/001_init.sql   # documents + chunks tables, HNSW cosine index
 ├─ lib/
-│  ├─ db.ts             # pg Pool                                            
-│  ├─ parse.ts          # file → text (PDF/DOCX/TXT/MD)                      
-│  ├─ chunk.ts          # text → token-bounded, overlapping chunks           
-│  ├─ embed.ts          # batched Gemini embeddings API calls                
-│  ├─ store.ts          # transactional insert of documents/chunks           
-│  ├─ retrieve.ts       # hand-written cosine top-k search                   
-│  └─ prompt.ts         # context budgeting + citation formatting
-├─ scripts/             # standalone test-*.ts — exercise each lib/ layer
-│  ├─ test-parse.ts     # npm run test:parse
-│  ├─ test-chunk.ts     # npm run test:chunk
-│  ├─ test-embed.ts     # npm run test:embed (calls the real Gemini API)
-│  ├─ test-store.ts     # npm run test:store (full pipeline, real DB + API)
-│  ├─ test-retrieve.ts  # npm run test:retrieve (semantic search + HNSW index check)
-│  ├─ test-prompt.ts    # npm run test:prompt (budget, citations, empty-hit fallback)
-│  ├─ test-integration.ts  # npm run test:integration (rollback, markDocumentFailed, real retrieve->assemble)
-│  └─ test-chat-route.ts   # npm run test:chat-route (real end-to-end HTTP + streaming)
-├─ tests/fixtures/      # real sample .txt/.md/.docx/.pdf used by the scripts above
+│  ├─ db.ts             # pg Pool
+│  ├─ parse.ts          # file → text (PDF/DOCX/TXT/MD)
+│  ├─ chunk.ts          # text → token-bounded, overlapping chunks
+│  ├─ embed.ts          # batched Gemini embeddings API calls
+│  ├─ store.ts          # transactional insert of documents/chunks
+│  ├─ retrieve.ts       # hand-written cosine top-k search
+│  ├─ prompt.ts         # context budgeting + citation formatting
+│  └─ constants.ts      # shared upload limits + content-type helpers
+├─ scripts/             # standalone test-*.ts — exercise each lib/ layer directly
+├─ eval/                # Recall@k / MRR harness (eval/run.ts, eval/dataset.json)
+├─ tests/fixtures/      # real sample .txt/.md/.docx/.pdf used by scripts + eval
 ├─ components/
-│  ├─ UploadPanel.tsx   # drag/drop upload, document list, status badges, delete
-│  └─ ChatPanel.tsx     # streaming answer, clickable [n] citations, empty-state
+│  ├─ UploadPanel.tsx   # drag/drop upload, document list, status, delete
+│  └─ ChatPanel.tsx     # multi-turn chat, streaming answers, citations
 ├─ app/
 │  ├─ api/
-│  │  ├─ upload/        # POST — parse -> chunk -> embed -> store, synchronous
+│  │  ├─ blob-upload/   # issues client tokens for direct-to-Blob uploads
+│  │  ├─ upload/        # fetches the uploaded blob, runs the ingestion pipeline
 │  │  ├─ documents/     # GET (list) / DELETE (cascade-deletes chunks)
-│  │  └─ chat/          # retrieval + streaming answer (Gemini)
-│  └─ page.tsx          # the real chat UI
-├─ eval/                # Recall@k / MRR harness for tuning retrieval       ⏳
+│  │  └─ chat/          # retrieval + streaming answer
+│  └─ page.tsx          # the chat UI
 └─ CONTRIBUTING.md / LICENSE / .env.example
 ```
 
@@ -99,19 +92,18 @@ flowchart TD
 npm install
 
 # 2. Postgres + pgvector, running locally
-#    (this repo was built against Homebrew Postgres 16; the pgvector Homebrew
-#    bottle only supports newer Postgres, so it was built from source against pg16 —
-#    see https://github.com/pgvector/pgvector#installation-notes if you hit the same thing)
 brew install postgresql@16 && brew services start postgresql@16
 createdb rag_app
+# pgvector's Homebrew bottle only supports newer Postgres — if brew install
+# pgvector fails, build it from source against pg16 instead:
+# https://github.com/pgvector/pgvector#installation-notes
 
 # 3. Configure environment
 cp .env.example .env.local
-# fill in DATABASE_URL (postgresql://localhost:5432/rag_app),
-# EMBEDDINGS_API_KEY and LLM_API_KEY — both free Gemini keys.
-# The same key works for both functionally, but two separate keys are
-# recommended even for local dev — see "One key or two?" below.
-# Get keys at https://aistudio.google.com/api-keys
+# DATABASE_URL=postgresql://localhost:5432/rag_app
+# EMBEDDINGS_API_KEY / LLM_API_KEY — free Gemini keys: https://aistudio.google.com/api-keys
+#   (same key works for both; two separate keys is better hygiene but doesn't add quota —
+#   Gemini's free tier is tracked per Google project, not per key)
 
 # 4. Run the migration
 psql rag_app -f migrations/001_init.sql
@@ -120,69 +112,66 @@ psql rag_app -f migrations/001_init.sql
 npm run dev
 ```
 
-### Testing each layer independently
+File uploads use Vercel Blob in production; locally, uploads still go through the same code path but need `BLOB_READ_WRITE_TOKEN` in `.env.local` (from your Vercel project's Storage tab) to actually reach Blob storage.
 
-Every `lib/` module has a standalone script under `scripts/` that exercises it directly against real fixture files (and, for embeddings, the real API) — no need to run the full app to know a layer works:
+### Testing
+
+Every `lib/` module has a standalone script under `scripts/` that exercises it directly — no need to run the full app to know a layer works:
 
 ```bash
-npm run test:parse    # PDF/DOCX/TXT/MD → plain text
-npm run test:chunk    # text → token-bounded, overlapping chunks
-npm run test:embed    # chunks → real 1536-dim vectors via the Gemini API
-npm run test:store    # full pipeline: parse → chunk → embed → store → verify in Postgres → cascade delete
-npm run test:retrieve # ingests two unrelated docs, verifies semantic search discriminates between them, confirms HNSW index usability
-npm run test:prompt   # context-window budget enforcement, citation numbering, honest empty-hit fallback
-npm run test:integration  # real retrieve->assemble wiring, transaction ROLLBACK, markDocumentFailed
-npm run test:chat-route   # real end-to-end: spins up next dev, ingests a doc, streams a real Gemini answer over the real route
-npm run test:multi-document # ingests two distinct docs, confirms one question can retrieve + synthesize across both
+npm run test:parse         # PDF/DOCX/TXT/MD → plain text
+npm run test:chunk         # text → token-bounded, overlapping chunks
+npm run test:embed         # chunks → real vectors via the Gemini API
+npm run test:store         # parse → chunk → embed → store → verify in Postgres → cascade delete
+npm run test:retrieve      # semantic search discrimination + HNSW index check
+npm run test:prompt        # context budget, citation numbering, empty-hit fallback
+npm run test:integration   # transaction ROLLBACK, retrieve->assemble wiring
+npm run test:chat-route    # end-to-end: real dev server, real streamed answer
+npm run test:multi-document # one question, retrieval + synthesis across two documents
+npm run eval                # Recall@k / MRR against eval/dataset.json
 ```
 
-The frontend (`app/page.tsx`, `components/`) was verified with a real headless-browser test (Playwright): upload a file → status flips to ready with a chunk count → chat input enables → ask a question → "Searching…" → streamed answer with real inline `[n]` citations → clicking a citation scrolls to and highlights its source card → removing the document clears the list and disables chat again. Zero console errors.
+The frontend was verified with headless-browser tests (Playwright): upload → status flips to ready → ask a question → streamed answer with citations → click a citation to highlight its source → remove the document → chat disables again. Same flow re-verified against the live production URL.
 
-### One key or two? (`EMBEDDINGS_API_KEY` vs `LLM_API_KEY`)
+## Retrieval quality: the eval harness
 
-A single Gemini key works for both — the same key authenticates any Gemini endpoint under one Google project. But two things are worth knowing before deciding:
+`npm run eval` measures retrieval quality numerically instead of eyeballing whether answers look right, using a small labeled question set (`eval/dataset.json` — each question tagged with which document should answer it):
 
-- **Gemini's free-tier rate limits are tracked per *project*, not per *key*.** Two keys inside the same Google project share one quota pool — creating a second key there buys you nothing extra. Confirmed empirically during this project's own testing: `gemini-3.5-flash`'s free tier turned out to be only **20 requests per day**, and normal development testing exhausted it in one session (`GenerateRequestsPerDayPerProjectPerModel-FreeTier`, `quotaValue: 20` — from the API's own error, not a guess).
-- **The quota is also tracked per *model***, which is why switching the generation model (see below) immediately restored functionality — it's a fresh, separate bucket.
+- **Recall@k** — did the correct document show up *anywhere* in the top-k results?
+- **MRR (Mean Reciprocal Rank)** — when it was found, how highly was it ranked? (1st place = 1.0, not found = 0.)
 
-**Recommendation:**
-- Minimum (cheap, no downside): use two separate keys even under one Google project — if one leaks, you revoke it without breaking the other function, and Google AI Studio's usage dashboard shows embeddings vs. generation usage separately.
-- If you expect real traffic: create a **second Google Cloud/AI Studio project** and pull `LLM_API_KEY` from it. That's the only thing that actually adds combined headroom, since quota doesn't multiply within one project.
+Chunk size, overlap, and top-k are tunable via env vars, so a tuning change can be measured before/after instead of guessed:
 
-### A real quota issue hit during development
+```bash
+EVAL_MAX_TOKENS=150 EVAL_OVERLAP_TOKENS=30 EVAL_TOP_K=3 npm run eval
+```
 
-`gemini-3.5-flash` (the original generation model) has a **20 requests/day** free-tier cap — confirmed by hitting it directly during testing, not assumed. Since quota is tracked per model, the fix was switching to `gemini-3.1-flash-lite`, verified to have quota available (tested three candidate models directly against the API first: `gemini-2.5-flash-lite` is deprecated for new users, `gemini-2.0-flash` was also exhausted, `gemini-3.1-flash-lite` returned `200`). If you hit `RESOURCE_EXHAUSTED` again, check https://aistudio.google.com/rate-limit for current usage, or switch `MODEL` in `app/api/chat/route.ts` to another current Flash model.
+Current fixture set scores 100% Recall@6 / MRR 1.000 — expected given how small and topically distinct the three fixture documents are. That confirms the harness itself works correctly; a rigorous benchmark needs a larger, more ambiguous corpus.
 
-## Deploying to production
+## Deploying your own copy
 
-The live demo above is deployed on Vercel with a real hosted database — here's what that took, in case you're deploying your own copy. The key thing to know going in: local dev's `DATABASE_URL` points at `localhost:5432`, which only exists on the machine running `next dev`. Vercel's servers have no way to reach it, so the very first deploy will 500 on every route that touches Postgres until you wire up a hosted database.
+1. **Hosted Postgres with pgvector** — [Neon](https://vercel.com/marketplace/neon) (Vercel's first-party Postgres integration, connects via the Storage tab, free tier, full pgvector/HNSW support). Run `migrations/001_init.sql` against it once.
+2. **Vercel Blob storage** — Storage tab → create a Blob store → connect it to the project. This injects `BLOB_READ_WRITE_TOKEN`.
+3. **Environment variables** (Project → Settings → Environment Variables): `DATABASE_URL`, `EMBEDDINGS_API_KEY`, `LLM_API_KEY`.
+4. **Redeploy**, then verify: `curl https://<your-deployment>/api/documents` should return `[]`, not `500`.
 
-To actually make it work:
-
-1. **Provision a hosted Postgres with pgvector — recommended: [Neon](https://vercel.com/marketplace/neon).** It's Vercel's own first-party Postgres integration (Vercel Postgres *is* Neon), connects through the Vercel dashboard's Storage tab with `DATABASE_URL` wired up automatically, has a free tier that never expires, and fully supports pgvector including HNSW indexes up to 2,000 dimensions (confirmed against Neon's own docs — comfortably covers this project's 1536-dim vectors) with zero extra restrictions. This is what the live demo actually runs on.
-2. **Run the migration against that hosted database:** `psql "<hosted-connection-string>" -f migrations/001_init.sql` (or the provider's SQL editor — just run the file's contents once).
-3. **Set environment variables in the Vercel project** (Project → Settings → Environment Variables): `DATABASE_URL` pointing at the hosted database, plus `EMBEDDINGS_API_KEY` and `LLM_API_KEY` (see "One key or two?" above).
-4. **Redeploy** (Vercel redeploys automatically on the next push once env vars are set, or trigger a manual redeploy from the dashboard).
-5. **Re-verify** — `curl https://<your-deployment>/api/documents` should return `[]` (not `500`) once the database is actually reachable.
-
-### Vercel's hard file-size limit
-
-Vercel Functions enforce a **non-configurable 4.5MB request body limit on every plan** (Hobby/Pro/Enterprise) — confirmed against Vercel's own docs and reproduced directly against this project's live deployment (a 5.7MB upload returned a raw platform `413 FUNCTION_PAYLOAD_TOO_LARGE` before the app's own code ever ran). `lib/constants.ts` caps uploads at 4MB, checked both client-side (fails fast, no wasted request) and server-side (authoritative). This only matters in production — there's no such limit running `next dev` locally.
+Two Vercel platform limits worth knowing:
+- **Request body cap:** 4.5MB on every plan, non-configurable — why uploads go client → Blob storage directly instead of through a Function.
+- **Gemini free-tier quota:** tracked per Google project *and* per model, not per API key. If you hit `RESOURCE_EXHAUSTED`, check https://aistudio.google.com/rate-limit or switch `MODEL` in `app/api/chat/route.ts` to another current Flash model.
 
 ## Progress
 
-- [x] Phase 0 — Postgres + pgvector running, `001_init.sql` applied, Next.js scaffolded
-- [x] Phase 1 — Parsing: PDF/DOCX/TXT/MD → clean text (`lib/parse.ts`)
-- [x] Phase 2 — Chunking: token-bounded, overlapping chunks (`lib/chunk.ts`)
-- [x] Phase 3 — Embeddings: batched Gemini API calls, verified against real vectors (`lib/embed.ts`)
-- [x] Phase 4 — Storage: insert documents + chunks in a transaction (`lib/store.ts`)
-- [x] Phase 5 — Retrieval: hand-written cosine top-k query (`lib/retrieve.ts`)
-- [x] Phase 6 — Prompt assembly + context-window budgeting (`lib/prompt.ts`)
-- [x] Phase 7 — Generation: streaming LLM route (`app/api/chat`), Gemini `gemini-3.1-flash-lite`
-- [x] Phase 8 — Frontend: upload states, live streaming, citations UI (plus the upload/documents API routes it needed, built this phase too)
-- [ ] Eval harness — Recall@k / MRR to tune chunk size and top-k against real numbers
-- [x] Production deployment — live on Vercel with a hosted Neon Postgres, verified end-to-end (see [Deploying to production](#deploying-to-production))
-
+- [x] Phase 0 — Postgres + pgvector, Next.js scaffolded
+- [x] Phase 1 — Parsing (`lib/parse.ts`)
+- [x] Phase 2 — Chunking (`lib/chunk.ts`)
+- [x] Phase 3 — Embeddings (`lib/embed.ts`)
+- [x] Phase 4 — Storage (`lib/store.ts`)
+- [x] Phase 5 — Retrieval (`lib/retrieve.ts`)
+- [x] Phase 6 — Prompt assembly (`lib/prompt.ts`)
+- [x] Phase 7 — Generation (`app/api/chat`)
+- [x] Phase 8 — Frontend (`app/page.tsx`, `components/`)
+- [x] Eval harness (`eval/`)
+- [x] Production deployment — live on Vercel, hosted Postgres + Blob storage
 
 ## Contributing
 
