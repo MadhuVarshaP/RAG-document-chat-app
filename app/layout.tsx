@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "RAG Document Chat",
-  description: "Chat with your own documents — hand-built retrieval-augmented generation.",
+  description: "Chat with your own documents.",
 };
 
 export default function RootLayout({
