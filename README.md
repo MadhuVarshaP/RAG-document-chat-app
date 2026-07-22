@@ -1,6 +1,7 @@
 # RAG Document Chat
 
-**Live demo:** https://rag-document-chat-application.vercel.app/
+**Live demo:** https://rag-document-chat-application.vercel.app/  
+**Video walkthrough:** https://youtu.be/0KWYPSf8yVw
 
 Chat with your own documents. Upload a PDF, DOCX, Markdown, or text file and ask questions about it — get streaming answers with inline citations pointing to the exact source passages.
 
