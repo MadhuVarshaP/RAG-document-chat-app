@@ -46,7 +46,7 @@ flowchart TD
 | Concern | Choice | Why |
 |---|---|---|
 | Framework | Next.js (App Router) + TypeScript | One repo for API routes and the streaming React UI |
-| UI | React + Tailwind CSS | Light theme, one accent color, CSS variables in `app/globals.css` |
+| UI | Next.js + Tailwind CSS | Light theme, one accent color, CSS variables in `app/globals.css` |
 | Database | Postgres + pgvector (hosted on Neon) | Real SQL, real vector indexes, no separate vector service |
 | DB access | `pg` (node-postgres), raw SQL | The cosine query is written by hand, on purpose |
 | File uploads | Vercel Blob (`@vercel/blob`), direct client → storage | Vercel Functions cap request bodies at 4.5MB; direct-to-Blob upload bypasses that entirely |
